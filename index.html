@@ -1,631 +1,586 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Advanced Expense Dashboard</title>
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.10.3/recharts.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.min.js"></script>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Inter', 'Segoe UI', sans-serif; background: #0f1117; color: #e2e8f0; transition: background 0.3s; }
-        body.light-mode { background: #f9fafb; color: #1f2937; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Expenses</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html{-webkit-text-size-adjust:100%;}
+/* custom background image layer (sits behind everything) */
+#bgImage{position:fixed;inset:0;z-index:-2;background-size:cover;background-position:center;background-repeat:no-repeat;display:none;}
+#bgImage.show{display:block;}
+#bgDim{position:fixed;inset:0;z-index:-1;display:none;}
+#bgDim.show{display:block;background:rgba(10,10,20,0.35);}
+body.light #bgDim.show{background:rgba(255,255,255,0.25);}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif;
+  min-height:100vh;color:#f5f5f7;font-size:16px;
+  background:
+    radial-gradient(circle at 15% 15%, #5b3a8c 0%, transparent 45%),
+    radial-gradient(circle at 85% 12%, #3a5a8c 0%, transparent 45%),
+    radial-gradient(circle at 75% 88%, #8c3a6e 0%, transparent 45%),
+    radial-gradient(circle at 20% 85%, #2c6e8c 0%, transparent 45%),
+    #0a0a14;
+  background-attachment:fixed;
+  padding-bottom:90px;
+}
+body.light{
+  color:#1d1d1f;
+  background:
+    radial-gradient(circle at 15% 15%, #c9b8ec 0%, transparent 45%),
+    radial-gradient(circle at 85% 12%, #b8d0ec 0%, transparent 45%),
+    radial-gradient(circle at 75% 88%, #ecc9dd 0%, transparent 45%),
+    radial-gradient(circle at 20% 85%, #b8e0ec 0%, transparent 45%),
+    #e8e8f0;
+  background-attachment:fixed;
+}
+.glass{
+  background:rgba(255,255,255,0.08);
+  backdrop-filter:blur(20px) saturate(180%);
+  -webkit-backdrop-filter:blur(20px) saturate(180%);
+  border:1px solid rgba(255,255,255,0.15);
+  box-shadow:0 8px 32px rgba(0,0,0,0.2),inset 0 1px 0 rgba(255,255,255,0.1);
+}
+body.light .glass{
+  background:rgba(255,255,255,0.55);
+  border:1px solid rgba(255,255,255,0.7);
+  box-shadow:0 8px 32px rgba(31,38,135,0.1),inset 0 1px 0 rgba(255,255,255,0.6);
+}
+.header{position:sticky;top:0;z-index:50;padding:max(14px,env(safe-area-inset-top)) 16px 0;
+  background:rgba(10,10,20,0.55);backdrop-filter:blur(24px) saturate(180%);-webkit-backdrop-filter:blur(24px) saturate(180%);
+  border-bottom:1px solid rgba(255,255,255,0.1);}
+body.light .header{background:rgba(232,232,240,0.55);border-bottom:1px solid rgba(255,255,255,0.5);}
+.header-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
+.app-title{font-size:24px;font-weight:700;letter-spacing:-0.5px;}
+.header-btns{display:flex;gap:8px;}
+.btn{border:none;border-radius:14px;padding:11px 17px;font-size:15px;font-weight:600;cursor:pointer;transition:transform 0.12s,opacity 0.15s;font-family:inherit;}
+.btn:active{transform:scale(0.93);}
+.btn-primary{background:rgba(99,102,241,0.92);color:#fff;box-shadow:0 4px 16px rgba(99,102,241,0.4);}
+.btn-icon{background:rgba(255,255,255,0.12);color:inherit;font-size:18px;border:1px solid rgba(255,255,255,0.15);min-width:46px;}
+body.light .btn-icon{background:rgba(255,255,255,0.5);border-color:rgba(255,255,255,0.6);}
+/* scrollable top tabs */
+.tabs{display:flex;gap:4px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none;}
+.tabs::-webkit-scrollbar{display:none;}
+.tab{background:transparent;border:none;padding:11px 16px;font-size:14px;font-weight:500;color:rgba(245,245,247,0.5);border-radius:12px 12px 0 0;cursor:pointer;white-space:nowrap;transition:color 0.2s;font-family:inherit;}
+body.light .tab{color:rgba(29,29,31,0.45);}
+.tab.active{color:#fff;font-weight:600;}
+body.light .tab.active{color:#1d1d1f;}
+.tab.active::after{content:"";display:block;height:3px;border-radius:3px;background:linear-gradient(90deg,#818cf8,#c084fc);margin-top:8px;}
+.content{padding:16px;max-width:1100px;margin:0 auto;}
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-bottom:16px;}
+.card{border-radius:22px;padding:17px;}
+.card-label{font-size:10px;text-transform:uppercase;letter-spacing:1.2px;opacity:0.55;margin-bottom:8px;font-weight:600;}
+.card-value{font-size:22px;font-weight:700;margin-bottom:3px;letter-spacing:-0.5px;}
+.card-sub{font-size:11px;opacity:0.5;}
+.chart-box{border-radius:24px;padding:18px;margin-bottom:14px;}
+.chart-title{font-size:14px;font-weight:600;opacity:0.75;margin-bottom:16px;}
+.grid2{display:grid;grid-template-columns:1fr;gap:14px;margin-bottom:14px;}
+@media(min-width:720px){.grid2{grid-template-columns:1fr 1fr;}.cards{grid-template-columns:repeat(4,1fr);}}
+/* full-screen mobile sheet for Add */
+.sheet-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);z-index:100;display:none;}
+.sheet-overlay.show{display:block;}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:101;border-radius:28px 28px 0 0;padding:22px 18px max(22px,env(safe-area-inset-bottom));transform:translateY(100%);transition:transform 0.3s cubic-bezier(0.32,0.72,0,1);max-height:90vh;overflow-y:auto;}
+.sheet.show{transform:translateY(0);}
+.sheet-handle{width:38px;height:5px;border-radius:3px;background:rgba(255,255,255,0.3);margin:0 auto 18px;}
+.sheet-title{font-size:20px;font-weight:700;margin-bottom:18px;}
+.field{margin-bottom:14px;}
+.field label{font-size:13px;opacity:0.65;display:block;margin-bottom:7px;font-weight:500;}
+.field input,.field select{width:100%;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.18);border-radius:14px;padding:14px 15px;color:inherit;font-size:16px;font-family:inherit;}
+body.light .field input,body.light .field select{background:rgba(255,255,255,0.7);border-color:rgba(0,0,0,0.08);}
+.field input:focus,.field select:focus{outline:none;border-color:rgba(129,140,248,0.7);}
+.field select option{background:#1a1a2e;color:#fff;}
+body.light .field select option{background:#fff;color:#1d1d1f;}
+.type-toggle{display:flex;gap:8px;}
+.type-btn{flex:1;padding:13px;border-radius:14px;border:1px solid rgba(255,255,255,0.18);background:rgba(255,255,255,0.06);color:inherit;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;transition:all 0.15s;}
+.type-btn.active-exp{background:rgba(251,146,60,0.25);border-color:rgba(251,146,60,0.6);color:#fdba74;}
+.type-btn.active-cred{background:rgba(52,211,153,0.25);border-color:rgba(52,211,153,0.6);color:#6ee7b7;}
+.btn-green{background:rgba(16,185,129,0.92);color:#fff;box-shadow:0 4px 16px rgba(16,185,129,0.35);}
+.btn-purple{background:rgba(167,139,250,0.92);color:#fff;box-shadow:0 4px 16px rgba(167,139,250,0.35);}
+.btn-red-solid{background:rgba(239,68,68,0.92);color:#fff;box-shadow:0 4px 16px rgba(239,68,68,0.3);}
+.btn-red{background:transparent;border:none;color:#ff6b6b;cursor:pointer;font-size:18px;opacity:0.6;padding:8px;}
+.btn-red:active{opacity:1;}
+.tx-list{display:flex;flex-direction:column;gap:9px;}
+.tx-item{border-radius:18px;padding:14px 15px;display:flex;justify-content:space-between;align-items:center;gap:10px;}
+.tx-left{display:flex;align-items:center;gap:12px;min-width:0;flex:1;}
+.tx-dot{width:40px;height:40px;border-radius:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.tx-name{font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.tx-meta{font-size:11px;opacity:0.55;margin-top:3px;}
+.tx-amount{font-size:16px;font-weight:700;letter-spacing:-0.3px;white-space:nowrap;}
+.tx-right{display:flex;align-items:center;gap:6px;flex-shrink:0;}
+.progress-bar-bg{background:rgba(255,255,255,0.1);border-radius:8px;height:9px;overflow:hidden;margin-top:8px;}
+body.light .progress-bar-bg{background:rgba(0,0,0,0.08);}
+.progress-bar{height:100%;border-radius:8px;transition:width 0.5s cubic-bezier(0.4,0,0.2,1);}
+.budget-cards{display:grid;grid-template-columns:1fr;gap:11px;margin-bottom:16px;}
+@media(min-width:600px){.budget-cards{grid-template-columns:1fr 1fr;}}
+.budget-card{border-radius:20px;padding:16px;}
+.budget-card.over{border-color:rgba(239,68,68,0.4);}
+.bc-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:11px;}
+.bc-name{font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px;}
+.bc-dot{width:11px;height:11px;border-radius:50%;}
+.badge-over{font-size:10px;background:rgba(239,68,68,0.25);color:#ff8a8a;padding:3px 10px;border-radius:20px;font-weight:600;}
+.bc-amounts{display:flex;justify-content:space-between;align-items:center;font-size:13px;opacity:0.85;margin-bottom:4px;}
+.budget-edit-input{width:90px;background:rgba(255,255,255,0.12);border:1px solid rgba(129,140,248,0.5);border-radius:10px;padding:6px 9px;color:inherit;font-size:14px;font-family:inherit;text-align:right;}
+body.light .budget-edit-input{background:rgba(255,255,255,0.8);}
+.bc-pct{font-size:11px;opacity:0.5;margin-top:6px;}
+.range-input{width:100%;accent-color:#a78bfa;height:8px;}
+.tag-chip{display:inline-block;background:rgba(255,255,255,0.12);font-size:10px;padding:2px 9px;border-radius:20px;margin:3px 3px 0 0;opacity:0.8;}
+body.light .tag-chip{background:rgba(0,0,0,0.07);}
+.search-bar{width:100%;border-radius:16px;padding:14px 16px;color:inherit;font-size:16px;margin-bottom:14px;font-family:inherit;
+  background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);}
+body.light .search-bar{background:rgba(255,255,255,0.6);border-color:rgba(0,0,0,0.08);}
+.search-bar:focus{outline:none;border-color:rgba(129,140,248,0.6);}
+.section-title{font-size:16px;font-weight:600;margin-bottom:14px;}
+.recur-list{display:flex;flex-direction:column;gap:10px;}
+.recur-card{border-radius:18px;padding:15px;}
+.recur-top{display:flex;justify-content:space-between;align-items:center;gap:10px;}
+.recur-left{display:flex;align-items:center;gap:12px;min-width:0;flex:1;}
+.recur-info{min-width:0;}
+.recur-name{font-size:15px;font-weight:600;}
+.recur-amt{font-size:13px;font-weight:700;color:#fbbf24;margin-top:3px;}
+.recur-actions{display:flex;align-items:center;gap:7px;flex-shrink:0;}
+.chip-btn{border:none;border-radius:12px;padding:8px 13px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:transform 0.12s;}
+.chip-btn:active{transform:scale(0.92);}
+.chip-pay{background:rgba(52,211,153,0.22);color:#6ee7b7;border:1px solid rgba(52,211,153,0.4);}
+.chip-paid{background:rgba(52,211,153,0.9);color:#04231a;border:1px solid transparent;}
+.export-grid{display:grid;grid-template-columns:1fr;gap:14px;}
+@media(min-width:600px){.export-grid{grid-template-columns:1fr 1fr;}}
+.export-card{border-radius:22px;padding:20px;}
+.export-card h3{font-size:16px;font-weight:600;margin-bottom:8px;}
+.export-card p{font-size:13px;opacity:0.6;margin-bottom:16px;line-height:1.5;}
+.btn-block{display:block;width:100%;margin-bottom:10px;padding:14px;border-radius:14px;}
+.info-box{border-radius:22px;padding:20px;margin-top:14px;}
+.info-box p{font-size:13px;opacity:0.7;line-height:2;}
+.stat-cards{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-bottom:16px;}
+@media(min-width:720px){.stat-cards{grid-template-columns:repeat(4,1fr);}}
+.empty-state{text-align:center;padding:50px 20px;opacity:0.5;}
+.empty-state .emoji{font-size:46px;margin-bottom:14px;}
+.empty-state p{font-size:14px;line-height:1.5;}
+/* sticky bottom add button on mobile */
+.fab{position:fixed;bottom:max(20px,env(safe-area-inset-bottom));right:20px;z-index:60;width:60px;height:60px;border-radius:20px;font-size:30px;font-weight:300;display:flex;align-items:center;justify-content:center;}
+@media(min-width:720px){.fab{display:none;}}
+.recur-summary{display:flex;gap:11px;margin-bottom:16px;}
+.recur-sum-card{flex:1;border-radius:18px;padding:15px;text-align:center;}
+.rs-val{font-size:20px;font-weight:700;letter-spacing:-0.5px;}
+.rs-lbl{font-size:10px;text-transform:uppercase;letter-spacing:1px;opacity:0.55;margin-top:5px;font-weight:600;}
+</style>
 </head>
 <body>
-    <div id="root"></div>
 
-    <script type="text/babel">
-        const { useState, useMemo, useEffect } = React;
-        const { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } = window.Recharts;
+<div id="bgImage"></div>
+<div id="bgDim"></div>
 
-        const EXPENSE_CATEGORIES = ["Food", "Transport", "Rent", "Entertainment", "Health", "Shopping", "Utilities", "Insurance", "Education", "Travel", "Subscriptions", "Personal Care", "Gifts", "Other"];
-        const CREDIT_CATEGORIES = ["Salary", "Freelance", "Investments", "Bonus", "Refunds", "Gifts", "Side Income", "Other"];
+<div class="header">
+  <div class="header-top">
+    <div class="app-title">Expenses</div>
+    <div class="header-btns">
+      <button class="btn btn-icon" onclick="toggleTheme()" id="themeBtn">☀️</button>
+      <button class="btn btn-primary" onclick="openSheet()">+ Add</button>
+    </div>
+  </div>
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('overview',this)">Overview</button>
+    <button class="tab" onclick="showTab('budget',this)">Budget</button>
+    <button class="tab" onclick="showTab('savings',this)">Savings</button>
+    <button class="tab" onclick="showTab('transactions',this)">Transactions</button>
+    <button class="tab" onclick="showTab('analytics',this)">Analytics</button>
+    <button class="tab" onclick="showTab('recurring',this)">Recurring</button>
+    <button class="tab" onclick="showTab('backup',this)">Backup</button>
+  </div>
+</div>
 
-        const CAT_COLORS = {
-            Food: "#f97316", Transport: "#3b82f6", Rent: "#8b5cf6", Entertainment: "#ec4899", 
-            Health: "#10b981", Shopping: "#f59e0b", Utilities: "#06b6d4", Insurance: "#8b5cf6",
-            Education: "#a78bfa", Travel: "#f97316", Subscriptions: "#6366f1", "Personal Care": "#ec4899",
-            Gifts: "#f472b6", Other: "#6b7280",
-            Salary: "#10b981", Freelance: "#06b6d4", Investments: "#f59e0b", Bonus: "#a78bfa",
-            Refunds: "#10b981", "Side Income": "#3b82f6",
-        };
+<div class="content">
+  <div id="tab-overview">
+    <div class="cards" id="overviewCards"></div>
+    <div id="overviewCharts">
+      <div class="grid2">
+        <div class="chart-box glass"><div class="chart-title">Spending by Category</div><canvas id="pieExpense"></canvas></div>
+        <div class="chart-box glass"><div class="chart-title">Income Sources</div><canvas id="pieCredit"></canvas></div>
+      </div>
+      <div class="chart-box glass"><div class="chart-title">Monthly Income vs Expenses</div><canvas id="lineChart"></canvas></div>
+    </div>
+  </div>
 
-        const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-        const DEFAULT_BUDGETS = {
-            Food: 5000, Transport: 3000, Rent: 10000, Entertainment: 2000, Health: 2000, 
-            Shopping: 3000, Utilities: 2000, Insurance: 1500, Education: 2000, Travel: 3000,
-            Subscriptions: 1000, "Personal Care": 1000, Gifts: 2000, Other: 1000
-        };
+  <div id="tab-budget" style="display:none">
+    <div class="budget-cards" id="budgetCards"></div>
+    <div class="chart-box glass"><div class="chart-title">Budget vs Actual</div><canvas id="budgetBar"></canvas></div>
+  </div>
 
-        function AdvancedExpenseDashboard() {
-            const [transactions, setTransactions] = useState(() => {
-                const saved = localStorage.getItem("transactions");
-                return saved ? JSON.parse(saved) : [
-                    { id: 1, date: "2026-06-01", type: "expense", category: "Rent", amount: 10000, note: "Monthly rent", tags: ["housing"] },
-                    { id: 2, date: "2026-06-03", type: "expense", category: "Food", amount: 1200, note: "Groceries", tags: ["groceries"] },
-                    { id: 3, date: "2026-06-05", type: "expense", category: "Transport", amount: 800, note: "Petrol", tags: ["fuel"] },
-                    { id: 4, date: "2026-06-07", type: "expense", category: "Entertainment", amount: 600, note: "OTT subscription", tags: ["subscription"] },
-                    { id: 5, date: "2026-06-01", type: "credit", category: "Salary", amount: 50000, note: "Monthly salary", tags: ["income"] },
-                    { id: 6, date: "2026-05-15", type: "credit", category: "Freelance", amount: 5000, note: "Project payment", tags: ["side-income"] },
-                ];
-            });
+  <div id="tab-savings" style="display:none">
+    <div class="stat-cards" id="savingsCards"></div>
+    <div class="chart-box glass">
+      <div class="chart-title">Monthly Savings Goal</div>
+      <div style="display:flex;gap:12px;align-items:center;margin-bottom:14px;">
+        <input type="range" class="range-input" min="0" max="100000" step="1000" id="savingsGoalRange" oninput="updateSavingsGoal(this.value)">
+        <span id="savingsGoalLabel" style="font-size:18px;font-weight:700;color:#c4b5fd;min-width:90px;"></span>
+      </div>
+      <div class="progress-bar-bg"><div class="progress-bar" id="savingsProgress" style="background:linear-gradient(90deg,#818cf8,#c084fc);"></div></div>
+    </div>
+    <div class="chart-box glass"><div class="chart-title">Monthly Net Flow</div><canvas id="savingsBar"></canvas></div>
+  </div>
 
-            const [budgets, setBudgets] = useState(() => {
-                const saved = localStorage.getItem("budgets");
-                return saved ? JSON.parse(saved) : DEFAULT_BUDGETS;
-            });
+  <div id="tab-transactions" style="display:none">
+    <input type="text" class="search-bar" id="searchInput" placeholder="🔍 Search note, category, tag..." oninput="renderTransactions()">
+    <div id="txCount" style="font-size:13px;opacity:0.55;margin-bottom:12px;"></div>
+    <div class="tx-list" id="txList"></div>
+  </div>
 
-            const [activeTab, setActiveTab] = useState("overview");
-            const [monthlySavingsGoal, setMonthlySavingsGoal] = useState(() => {
-                const saved = localStorage.getItem("savingsGoal");
-                return saved ? JSON.parse(saved) : 8000;
-            });
-            const [lightMode, setLightMode] = useState(() => localStorage.getItem("lightMode") === "true");
-            const [form, setForm] = useState({ date: "", type: "expense", category: "Food", amount: "", note: "", tags: "" });
-            const [editingBudget, setEditingBudget] = useState(null);
-            const [showAddForm, setShowAddForm] = useState(false);
-            const [searchTag, setSearchTag] = useState("");
-            const [recurringExpenses, setRecurringExpenses] = useState(() => {
-                const saved = localStorage.getItem("recurringExpenses");
-                return saved ? JSON.parse(saved) : [];
-            });
-            const [compareYear, setCompareYear] = useState(new Date().getFullYear());
+  <div id="tab-analytics" style="display:none">
+    <div class="stat-cards" id="statCards"></div>
+    <div class="grid2">
+      <div class="chart-box glass"><div class="chart-title">Top Spending Categories</div><canvas id="analyticsBar"></canvas></div>
+      <div class="chart-box glass">
+        <div class="chart-title">Year Comparison</div>
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px;">
+          <button class="btn btn-icon" onclick="changeYear(-1)" style="padding:7px 13px;font-size:16px;">←</button>
+          <span id="compareYearLabel" style="font-size:15px;font-weight:600;flex:1;text-align:center;"></span>
+          <button class="btn btn-icon" onclick="changeYear(1)" style="padding:7px 13px;font-size:16px;">→</button>
+        </div>
+        <canvas id="yearBar"></canvas>
+      </div>
+    </div>
+  </div>
 
-            useEffect(() => {
-                localStorage.setItem("transactions", JSON.stringify(transactions));
-            }, [transactions]);
+  <div id="tab-recurring" style="display:none">
+    <div class="recur-summary" id="recurSummary"></div>
+    <div class="chart-box glass" style="margin-bottom:14px;">
+      <div class="section-title">Add Recurring Bill</div>
+      <div style="display:flex;flex-direction:column;gap:11px;">
+        <div class="field" style="margin:0;"><label>Name (optional)</label><input type="text" id="rName" placeholder="e.g. Netflix, Home loan"></div>
+        <div style="display:flex;gap:11px;">
+          <div class="field" style="margin:0;flex:1;"><label>Category</label><select id="rCategory"></select></div>
+          <div class="field" style="margin:0;flex:1;"><label>Due day</label><input type="number" id="rDueDay" placeholder="1-31" min="1" max="31"></div>
+        </div>
+        <div style="display:flex;gap:11px;align-items:flex-end;">
+          <div class="field" style="margin:0;flex:1;"><label>Amount (₹)</label><input type="number" id="rAmount" placeholder="0"></div>
+          <button class="btn btn-green" style="padding:14px 22px;" onclick="addRecurring()">Add</button>
+        </div>
+      </div>
+    </div>
+    <div class="recur-list" id="recurringList"></div>
+  </div>
 
-            useEffect(() => {
-                localStorage.setItem("budgets", JSON.stringify(budgets));
-            }, [budgets]);
+  <div id="tab-backup" style="display:none">
+    <div class="export-card glass" style="margin-bottom:14px;">
+      <h3>🎨 Background</h3>
+      <p>Set a custom blurred background photo behind the glass.</p>
+      <input type="file" id="bgFile" accept="image/*" onchange="setBgImage(this)" style="display:none;">
+      <div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:14px;">
+        <button class="btn btn-purple" style="flex:1;min-width:130px;padding:13px;" onclick="document.getElementById('bgFile').click()">📷 Choose Photo</button>
+        <button class="btn btn-icon" style="flex:1;min-width:130px;padding:13px;" onclick="clearBgImage()">Reset to gradient</button>
+      </div>
+      <div id="blurControl" style="display:none;">
+        <label style="font-size:13px;opacity:0.65;display:block;margin-bottom:8px;font-weight:500;">Blur amount</label>
+        <div style="display:flex;gap:12px;align-items:center;">
+          <input type="range" class="range-input" min="0" max="40" step="1" id="blurRange" oninput="setBlur(this.value)">
+          <span id="blurLabel" style="font-size:15px;font-weight:700;color:#c4b5fd;min-width:54px;"></span>
+        </div>
+        <label style="font-size:13px;opacity:0.65;display:block;margin:14px 0 8px;font-weight:500;">Darken (for text readability)</label>
+        <div style="display:flex;gap:12px;align-items:center;">
+          <input type="range" class="range-input" min="0" max="80" step="5" id="dimRange" oninput="setDim(this.value)">
+          <span id="dimLabel" style="font-size:15px;font-weight:700;color:#c4b5fd;min-width:54px;"></span>
+        </div>
+      </div>
+    </div>
+    <div class="export-grid">
+      <div class="export-card glass">
+        <h3>📊 Export Data</h3>
+        <p>Download your transactions for backup or external analysis.</p>
+        <button class="btn btn-primary btn-block" onclick="exportCSV()">📄 Export as CSV</button>
+        <button class="btn btn-green btn-block" onclick="exportJSON()">💾 Export as JSON</button>
+      </div>
+      <div class="export-card glass">
+        <h3>📥 Restore Data</h3>
+        <p>Import a previously exported JSON backup file.</p>
+        <input type="file" id="importFile" accept=".json" onchange="importJSON(this)" style="display:none;">
+        <button class="btn btn-purple btn-block" onclick="document.getElementById('importFile').click()">📂 Import Backup</button>
+        <button class="btn btn-red-solid btn-block" onclick="clearData()">🗑️ Clear All Data</button>
+      </div>
+    </div>
+    <div class="info-box glass">
+      <p>✅ All data stored locally on your device</p>
+      <p>✅ Works offline after first load</p>
+      <p>✅ No tracking or ads</p>
+      <p>✅ Add to Home Screen for an app-like experience</p>
+      <p style="margin-top:8px;font-size:10px;opacity:0.4;">Version 4.0 • Mobile Glass</p>
+    </div>
+  </div>
+</div>
 
-            useEffect(() => {
-                localStorage.setItem("savingsGoal", JSON.stringify(monthlySavingsGoal));
-            }, [monthlySavingsGoal]);
+<button class="btn btn-primary fab" onclick="openSheet()">+</button>
 
-            useEffect(() => {
-                localStorage.setItem("lightMode", lightMode);
-                document.body.className = lightMode ? "light-mode" : "";
-            }, [lightMode]);
+<!-- Add transaction bottom sheet -->
+<div class="sheet-overlay" id="sheetOverlay" onclick="closeSheet()"></div>
+<div class="sheet glass" id="addSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">Add Transaction</div>
+  <div class="field">
+    <label>Type</label>
+    <div class="type-toggle">
+      <button class="type-btn active-exp" id="typeExpBtn" onclick="setType('expense')">💸 Expense</button>
+      <button class="type-btn" id="typeCredBtn" onclick="setType('credit')">💰 Credit</button>
+    </div>
+  </div>
+  <div class="field"><label>Amount (₹)</label><input type="number" id="fAmount" placeholder="0" inputmode="numeric"></div>
+  <div class="field"><label>Category</label><select id="fCategory"></select></div>
+  <div class="field"><label>Date</label><input type="date" id="fDate"></div>
+  <div class="field"><label>Note (optional)</label><input type="text" id="fNote" placeholder="What for?"></div>
+  <div class="field"><label>Tags (comma separated, optional)</label><input type="text" id="fTags" placeholder="food, emi"></div>
+  <button class="btn btn-green" style="width:100%;padding:16px;font-size:16px;" onclick="addTransaction()">Save Transaction</button>
+</div>
 
-            useEffect(() => {
-                localStorage.setItem("recurringExpenses", JSON.stringify(recurringExpenses));
-            }, [recurringExpenses]);
+<script>
+const EXPENSE_CATS=["Food","Transport","Rent","Entertainment","Health","Shopping","Utilities","Insurance","Education","Travel","Subscriptions","Personal Care","Gifts","EMI","Other"];
+const CREDIT_CATS=["Salary","Freelance","Investments","Bonus","Refunds","Gifts","Side Income","Other"];
+const COLORS={Food:"#f97316",Transport:"#3b82f6",Rent:"#8b5cf6",Entertainment:"#ec4899",Health:"#10b981",Shopping:"#f59e0b",Utilities:"#06b6d4",Insurance:"#c084fc",Education:"#a78bfa",Travel:"#fb923c",Subscriptions:"#6366f1","Personal Care":"#f472b6",Gifts:"#e879f9",EMI:"#ef4444",Other:"#94a3b8",Salary:"#10b981",Freelance:"#06b6d4",Investments:"#f59e0b",Bonus:"#a78bfa",Refunds:"#34d399","Side Income":"#3b82f6"};
+const MONTHS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
-            const now = new Date();
-            const currentMonth = now.getMonth();
-            const currentYear = now.getFullYear();
+let transactions=JSON.parse(localStorage.getItem("txns")||"[]");
+let budgets=JSON.parse(localStorage.getItem("budgets")||"null")||{};
+let savingsGoal=JSON.parse(localStorage.getItem("savingsGoal")||"10000");
+let recurringExpenses=JSON.parse(localStorage.getItem("recurring")||"[]");
+let lightMode=localStorage.getItem("lightMode")==="true";
+let bgImage=localStorage.getItem("bgImage")||null;
+let bgBlur=Number(localStorage.getItem("bgBlur")||"18");
+let bgDim=Number(localStorage.getItem("bgDim")||"35");
+let formType="expense";
+let compareYear=new Date().getFullYear();
+let charts={};
+const now=new Date();const CM=now.getMonth(),CY=now.getFullYear();
+const monthKey=CY+"-"+CM;
 
-            const thisMonthTransactions = useMemo(() =>
-                transactions.filter(t => {
-                    const d = new Date(t.date);
-                    return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
-                }), [transactions]);
+function save(){localStorage.setItem("txns",JSON.stringify(transactions));localStorage.setItem("budgets",JSON.stringify(budgets));localStorage.setItem("savingsGoal",JSON.stringify(savingsGoal));localStorage.setItem("recurring",JSON.stringify(recurringExpenses));}
+function fmt(n){return "₹"+Number(n).toLocaleString("en-IN");}
+function toggleTheme(){lightMode=!lightMode;document.body.className=lightMode?"light":"";document.getElementById("themeBtn").textContent=lightMode?"🌙":"☀️";localStorage.setItem("lightMode",lightMode);applyBg();renderTab(currentTab);}
 
-            const thisMonthExpenses = thisMonthTransactions.filter(t => t.type === "expense");
-            const thisMonthCredits = thisMonthTransactions.filter(t => t.type === "credit");
+// Bottom sheet
+function openSheet(){updateCategories();if(!document.getElementById("fDate").value)document.getElementById("fDate").value=new Date().toISOString().split("T")[0];document.getElementById("sheetOverlay").classList.add("show");setTimeout(()=>document.getElementById("addSheet").classList.add("show"),10);}
+function closeSheet(){document.getElementById("addSheet").classList.remove("show");setTimeout(()=>document.getElementById("sheetOverlay").classList.remove("show"),250);}
+function setType(t){formType=t;document.getElementById("typeExpBtn").className="type-btn"+(t==="expense"?" active-exp":"");document.getElementById("typeCredBtn").className="type-btn"+(t==="credit"?" active-cred":"");updateCategories();}
+function updateCategories(){document.getElementById("fCategory").innerHTML=(formType==="expense"?EXPENSE_CATS:CREDIT_CATS).map(c=>`<option>${c}</option>`).join("");}
+function populateRecurringCats(){document.getElementById("rCategory").innerHTML=EXPENSE_CATS.map(c=>`<option>${c}</option>`).join("");}
 
-            const totalExpenses = thisMonthExpenses.reduce((s, t) => s + t.amount, 0);
-            const totalCredits = thisMonthCredits.reduce((s, t) => s + t.amount, 0);
-            const totalBudget = Object.values(budgets).reduce((s, v) => s + v, 0);
-            const balance = totalCredits - totalExpenses;
+let currentTab="overview";
+function showTab(name,btn){document.querySelectorAll('[id^="tab-"]').forEach(el=>el.style.display="none");document.getElementById("tab-"+name).style.display="block";document.querySelectorAll(".tab").forEach(b=>b.classList.remove("active"));btn.classList.add("active");currentTab=name;renderTab(name);window.scrollTo(0,0);}
+function renderTab(name){({overview:renderOverview,budget:renderBudget,savings:renderSavings,transactions:renderTransactions,analytics:renderAnalytics,recurring:renderRecurring}[name]||(()=>{}))();}
 
-            const filteredTransactions = useMemo(() => {
-                return transactions.filter(t => {
-                    if (searchTag && !t.tags.includes(searchTag)) return false;
-                    return true;
-                });
-            }, [transactions, searchTag]);
+function thisMonthTxns(){return transactions.filter(t=>{const d=new Date(t.date);return d.getMonth()===CM&&d.getFullYear()===CY;});}
+function monthTxns(m,y){return transactions.filter(t=>{const d=new Date(t.date);return d.getMonth()===m&&d.getFullYear()===y;});}
+function emptyState(msg){return `<div class="empty-state"><div class="emoji">📭</div><p>${msg}</p></div>`;}
 
-            const categoryData = EXPENSE_CATEGORIES.map(cat => ({
-                name: cat,
-                spent: thisMonthExpenses.filter(e => e.category === cat).reduce((s, e) => s + e.amount, 0),
-                budget: budgets[cat],
-            }));
+function renderOverview(){
+  const txns=thisMonthTxns();
+  const expenses=txns.filter(t=>t.type==="expense").reduce((s,t)=>s+t.amount,0);
+  const credits=txns.filter(t=>t.type==="credit").reduce((s,t)=>s+t.amount,0);
+  const balance=credits-expenses;
+  document.getElementById("overviewCards").innerHTML=[
+    {l:"Income",v:fmt(credits),c:"#34d399",s:MONTHS[CM]+" "+CY},
+    {l:"Expenses",v:fmt(expenses),c:"#fb923c",s:"This month"},
+    {l:"Balance",v:fmt(balance),c:balance>=0?"#818cf8":"#f87171",s:balance>=0?"Surplus":"Deficit"},
+    {l:"Transactions",v:txns.length,c:"#c4b5fd",s:"This month"},
+  ].map(c=>`<div class="card glass"><div class="card-label">${c.l}</div><div class="card-value" style="color:${c.c}">${c.v}</div><div class="card-sub">${c.s}</div></div>`).join("");
+  const ex=document.getElementById("emptyOv");if(ex)ex.remove();
+  if(transactions.length===0){document.getElementById("overviewCharts").style.display="none";document.getElementById("overviewCards").insertAdjacentHTML("afterend",`<div id="emptyOv">${emptyState("No transactions yet.<br>Tap + Add to get started!")}</div>`);return;}
+  document.getElementById("overviewCharts").style.display="block";
+  const expCats=EXPENSE_CATS.map(cat=>({name:cat,val:txns.filter(t=>t.type==="expense"&&t.category===cat).reduce((s,t)=>s+t.amount,0)})).filter(c=>c.val>0);
+  mkPie("pieExpense",expCats.map(c=>c.name),expCats.map(c=>c.val),expCats.map(c=>COLORS[c.name]));
+  const credCats=CREDIT_CATS.map(cat=>({name:cat,val:txns.filter(t=>t.type==="credit"&&t.category===cat).reduce((s,t)=>s+t.amount,0)})).filter(c=>c.val>0);
+  mkPie("pieCredit",credCats.map(c=>c.name),credCats.map(c=>c.val),credCats.map(c=>COLORS[c.name]));
+  const m6=Array.from({length:6},(_,i)=>{const d=new Date(CY,CM-5+i,1);const t=monthTxns(d.getMonth(),d.getFullYear());return{label:MONTHS[d.getMonth()],exp:t.filter(x=>x.type==="expense").reduce((s,x)=>s+x.amount,0),cred:t.filter(x=>x.type==="credit").reduce((s,x)=>s+x.amount,0)};});
+  mkLine("lineChart",m6.map(m=>m.label),[{label:"Income",data:m6.map(m=>m.cred),color:"#34d399"},{label:"Expenses",data:m6.map(m=>m.exp),color:"#fb923c"}]);
+}
 
-            const creditCategoryData = CREDIT_CATEGORIES.map(cat => ({
-                name: cat,
-                amount: thisMonthCredits.filter(c => c.category === cat).reduce((s, c) => s + c.amount, 0),
-            }));
+function renderBudget(){
+  const txns=thisMonthTxns().filter(t=>t.type==="expense");
+  // Only show categories that have a budget set OR have spending
+  const activeCats=EXPENSE_CATS.filter(cat=>(budgets[cat]>0)||txns.some(t=>t.category===cat));
+  const catData=activeCats.map(cat=>({name:cat,spent:txns.filter(t=>t.category===cat).reduce((s,t)=>s+t.amount,0),budget:budgets[cat]||0}));
+  let html="";
+  if(catData.length===0){
+    html=emptyState("No budgets set yet.<br>Add one below 👇");
+  }else{
+    html=catData.map(c=>{
+      const pct=c.budget>0?Math.min(100,Math.round(c.spent/c.budget*100)):0;
+      const over=c.budget>0&&c.spent>c.budget;const col=COLORS[c.name];
+      const barCol=over?"#ef4444":pct>80?"#f59e0b":col;
+      const budgetLabel=c.budget>0?fmt(c.budget):"Set budget";
+      return `<div class="budget-card glass ${over?'over':''}"><div class="bc-top"><div class="bc-name"><div class="bc-dot" style="background:${col}"></div>${c.name}</div>${over?'<span class="badge-over">Over!</span>':''}</div><div class="bc-amounts"><span>Spent: <strong style="color:${over?'#f87171':''}">${fmt(c.spent)}</strong></span><span id="bedit-${c.name.replace(/ /g,'_')}"><button class="chip-btn chip-pay" onclick="editBudget('${c.name}')">${budgetLabel}</button></span></div>${c.budget>0?`<div class="progress-bar-bg"><div class="progress-bar" style="width:${pct}%;background:${barCol}"></div></div><div class="bc-pct">${pct}% used</div>`:''}</div>`;
+    }).join("");
+  }
+  // Add-new-budget card
+  html+=`<div class="budget-card glass" style="display:flex;flex-direction:column;gap:10px;justify-content:center;"><div style="font-size:13px;opacity:0.7;font-weight:600;">+ Add budget for category</div><div style="display:flex;gap:8px;"><select id="newBudgetCat" style="flex:1;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.18);border-radius:12px;padding:10px;color:inherit;font-size:14px;font-family:inherit;">${EXPENSE_CATS.map(c=>`<option>${c}</option>`).join("")}</select><input type="number" id="newBudgetAmt" placeholder="₹" style="width:80px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.18);border-radius:12px;padding:10px;color:inherit;font-size:14px;font-family:inherit;"><button class="btn btn-green" style="padding:10px 14px;" onclick="addBudget()">Set</button></div></div>`;
+  document.getElementById("budgetCards").innerHTML=html;
+  const fullData=EXPENSE_CATS.filter(cat=>budgets[cat]>0).map(cat=>({name:cat,spent:txns.filter(t=>t.category===cat).reduce((s,t)=>s+t.amount,0),budget:budgets[cat]}));
+  mkBar("budgetBar",fullData.map(c=>c.name),[{label:"Budget",data:fullData.map(c=>c.budget),color:"rgba(255,255,255,0.2)"},{label:"Spent",data:fullData.map(c=>c.spent),colors:fullData.map(c=>COLORS[c.name])}]);
+}
+function editBudget(name){const id="bedit-"+name.replace(/ /g,'_');document.getElementById(id).innerHTML=`<input type="number" class="budget-edit-input" id="binp-${name.replace(/ /g,'_')}" value="${budgets[name]||''}" placeholder="0" autofocus onblur="saveBudget('${name}',this.value)" onkeydown="if(event.key==='Enter')this.blur()">`;document.getElementById("binp-"+name.replace(/ /g,'_')).focus();}
+function saveBudget(name,val){budgets[name]=Number(val)||0;save();renderBudget();}
+function addBudget(){const cat=document.getElementById("newBudgetCat").value;const amt=Number(document.getElementById("newBudgetAmt").value);if(!amt)return;budgets[cat]=amt;save();renderBudget();}
 
-            const monthlyTrend = Array.from({ length: 12 }, (_, i) => {
-                const d = new Date(compareYear, i, 1);
-                const m = d.getMonth();
-                const y = d.getFullYear();
-                const expenses = transactions
-                    .filter(t => t.type === "expense" && { const d2 = new Date(t.date); return d2.getMonth() === m && d2.getFullYear() === y; })
-                    .reduce((s, t) => s + t.amount, 0);
-                const credits = transactions
-                    .filter(t => t.type === "credit" && { const d2 = new Date(t.date); return d2.getMonth() === m && d2.getFullYear() === y; })
-                    .reduce((s, t) => s + t.amount, 0);
-                return { month: MONTHS[m], expenses: expenses, credits: credits };
-            });
+function renderSavings(){
+  const txns=thisMonthTxns();
+  const expenses=txns.filter(t=>t.type==="expense").reduce((s,t)=>s+t.amount,0);
+  const credits=txns.filter(t=>t.type==="credit").reduce((s,t)=>s+t.amount,0);
+  const saved=Math.max(0,credits-expenses);
+  const pct=savingsGoal>0?Math.min(100,Math.round(saved/savingsGoal*100)):0;
+  document.getElementById("savingsCards").innerHTML=[
+    {l:"Saved This Month",v:fmt(saved),c:"#34d399"},
+    {l:"Monthly Goal",v:fmt(savingsGoal),c:"#c4b5fd"},
+    {l:"Progress",v:pct+"%",c:saved>=savingsGoal?"#34d399":"#fbbf24"},
+    {l:"Savings Rate",v:credits>0?Math.round(saved/credits*100)+"%":"—",c:"#818cf8"},
+  ].map(c=>`<div class="card glass"><div class="card-label">${c.l}</div><div class="card-value" style="color:${c.c}">${c.v}</div></div>`).join("");
+  document.getElementById("savingsGoalRange").value=savingsGoal;
+  document.getElementById("savingsGoalLabel").textContent=fmt(savingsGoal);
+  document.getElementById("savingsProgress").style.width=pct+"%";
+  const m6=Array.from({length:6},(_,i)=>{const d=new Date(CY,CM-5+i,1);const t=monthTxns(d.getMonth(),d.getFullYear());const e=t.filter(x=>x.type==="expense").reduce((s,x)=>s+x.amount,0);const c=t.filter(x=>x.type==="credit").reduce((s,x)=>s+x.amount,0);return{label:MONTHS[d.getMonth()],net:Math.max(0,c-e)};});
+  mkBar("savingsBar",m6.map(m=>m.label),[{label:"Net Savings",data:m6.map(m=>m.net),color:"#34d399"}]);
+}
+function updateSavingsGoal(v){savingsGoal=Number(v);document.getElementById("savingsGoalLabel").textContent=fmt(savingsGoal);const t=thisMonthTxns();const e=t.filter(x=>x.type==="expense").reduce((s,x)=>s+x.amount,0);const c=t.filter(x=>x.type==="credit").reduce((s,x)=>s+x.amount,0);const saved=Math.max(0,c-e);const pct=savingsGoal>0?Math.min(100,Math.round(saved/savingsGoal*100)):0;document.getElementById("savingsProgress").style.width=pct+"%";save();}
 
-            const stats = {
-                avgDaily: thisMonthExpenses.length > 0 ? Math.round(totalExpenses / 30) : 0,
-                largestTransaction: thisMonthExpenses.length > 0 ? Math.max(...thisMonthExpenses.map(t => t.amount)) : 0,
-                transactionCount: thisMonthExpenses.length,
-                totalCredits: totalCredits,
-            };
+function renderTransactions(){
+  const q=(document.getElementById("searchInput")?.value||"").toLowerCase();
+  const filtered=transactions.filter(t=>!q||t.note.toLowerCase().includes(q)||t.category.toLowerCase().includes(q)||t.tags.some(tag=>tag.toLowerCase().includes(q))).sort((a,b)=>new Date(b.date)-new Date(a.date));
+  document.getElementById("txCount").textContent=filtered.length+" transactions";
+  if(filtered.length===0){document.getElementById("txList").innerHTML=emptyState(q?"No matching transactions.":"No transactions yet.");return;}
+  document.getElementById("txList").innerHTML=filtered.map(t=>{
+    const col=COLORS[t.category]||"#94a3b8";const amtColor=t.type==="expense"?"#fb923c":"#34d399";const sign=t.type==="expense"?"−":"+";
+    const dateStr=new Date(t.date).toLocaleDateString("en-IN",{day:"numeric",month:"short"});
+    const tags=t.tags.map(tag=>`<span class="tag-chip">${tag}</span>`).join("");
+    return `<div class="tx-item glass"><div class="tx-left"><div class="tx-dot" style="background:${col}33"><div style="width:13px;height:13px;border-radius:50%;background:${col}"></div></div><div style="min-width:0;"><div class="tx-name">${t.note||t.category}</div><div class="tx-meta">${t.category} · ${dateStr} ${tags}</div></div></div><div class="tx-right"><span class="tx-amount" style="color:${amtColor}">${sign}${fmt(t.amount)}</span><button class="btn-red" onclick="deleteTxn(${t.id})">✕</button></div></div>`;
+  }).join("");
+}
+function deleteTxn(id){if(!confirm("Delete this transaction?"))return;transactions=transactions.filter(t=>t.id!==id);save();renderTransactions();}
 
-            const pieData = categoryData.filter(c => c.spent > 0);
+function renderAnalytics(){
+  const txns=thisMonthTxns().filter(t=>t.type==="expense");
+  const total=txns.reduce((s,t)=>s+t.amount,0);const largest=txns.length?Math.max(...txns.map(t=>t.amount)):0;
+  const allCredits=thisMonthTxns().filter(t=>t.type==="credit").reduce((s,t)=>s+t.amount,0);
+  document.getElementById("statCards").innerHTML=[
+    {l:"Avg Daily Spend",v:fmt(Math.round(total/30)),c:"#fbbf24"},
+    {l:"Largest Expense",v:fmt(largest),c:"#f87171"},
+    {l:"Expense Count",v:txns.length,c:"#818cf8"},
+    {l:"Total Income",v:fmt(allCredits),c:"#34d399"},
+  ].map(c=>`<div class="card glass"><div class="card-label">${c.l}</div><div class="card-value" style="color:${c.c}">${c.v}</div></div>`).join("");
+  document.getElementById("compareYearLabel").textContent=compareYear;
+  const catData=EXPENSE_CATS.map(cat=>({name:cat,val:txns.filter(t=>t.category===cat).reduce((s,t)=>s+t.amount,0)})).filter(c=>c.val>0).sort((a,b)=>b.val-a.val).slice(0,8);
+  mkBar("analyticsBar",catData.map(c=>c.name),[{label:"Spent",data:catData.map(c=>c.val),colors:catData.map(c=>COLORS[c.name])}]);
+  const yearData=Array.from({length:12},(_,i)=>{const t=monthTxns(i,compareYear);return{label:MONTHS[i],exp:t.filter(x=>x.type==="expense").reduce((s,x)=>s+x.amount,0),cred:t.filter(x=>x.type==="credit").reduce((s,x)=>s+x.amount,0)};});
+  mkBar("yearBar",yearData.map(m=>m.label),[{label:"Expenses",data:yearData.map(m=>m.exp),color:"#fb923c"},{label:"Income",data:yearData.map(m=>m.cred),color:"#34d399"}]);
+}
+function changeYear(dir){compareYear+=dir;renderAnalytics();}
 
-            const addTransaction = () => {
-                if (!form.date || !form.amount || isNaN(Number(form.amount))) return;
-                const tags = form.tags.split(",").map(t => t.trim()).filter(t => t);
-                setTransactions(prev => [...prev, {
-                    id: Date.now(),
-                    date: form.date,
-                    type: form.type,
-                    category: form.category,
-                    amount: Number(form.amount),
-                    note: form.note,
-                    tags: tags,
-                }]);
-                setForm({ date: "", type: "expense", category: "Food", amount: "", note: "", tags: "" });
-                setShowAddForm(false);
-            };
+// ---- RECURRING (enhanced) ----
+function renderRecurring(){
+  populateRecurringCats();
+  const totalMonthly=recurringExpenses.reduce((s,r)=>s+r.amount,0);
+  const paidThisMonth=recurringExpenses.filter(r=>r.paidMonth===monthKey).reduce((s,r)=>s+r.amount,0);
+  const credits=thisMonthTxns().filter(t=>t.type==="credit").reduce((s,t)=>s+t.amount,0);
+  const incomeShare=credits>0?Math.round(totalMonthly/credits*100):0;
+  document.getElementById("recurSummary").innerHTML=`
+    <div class="recur-sum-card glass"><div class="rs-val" style="color:#fbbf24">${fmt(totalMonthly)}</div><div class="rs-lbl">Monthly Fixed</div></div>
+    <div class="recur-sum-card glass"><div class="rs-val" style="color:#34d399">${fmt(paidThisMonth)}</div><div class="rs-lbl">Paid This Month</div></div>
+    <div class="recur-sum-card glass"><div class="rs-val" style="color:#818cf8">${incomeShare}%</div><div class="rs-lbl">Of Income</div></div>`;
+  document.getElementById("recurringList").innerHTML=recurringExpenses.length===0
+    ? emptyState("No recurring bills yet.<br>Add subscriptions, rent, EMIs etc.")
+    : [...recurringExpenses].sort((a,b)=>(a.dueDay||32)-(b.dueDay||32)).map(r=>{
+        const col=COLORS[r.category]||"#94a3b8";
+        const isPaid=r.paidMonth===monthKey;
+        const dueText=r.dueDay?`Due ${r.dueDay}${nth(r.dueDay)}`:"";
+        return `<div class="recur-card glass"><div class="recur-top"><div class="recur-left"><div class="tx-dot" style="background:${col}33"><div style="width:13px;height:13px;border-radius:50%;background:${col}"></div></div><div class="recur-info"><div class="recur-name">${r.name||r.category}</div><div class="recur-amt">${fmt(r.amount)}/mo ${dueText?'· '+dueText:''}</div></div></div><div class="recur-actions"><button class="chip-btn ${isPaid?'chip-paid':'chip-pay'}" onclick="togglePaid(${r.id})">${isPaid?'✓ Paid':'Mark paid'}</button><button class="btn-red" onclick="removeRecurring(${r.id})">✕</button></div></div></div>`;
+      }).join("");
+}
+function nth(d){if(d>3&&d<21)return "th";switch(d%10){case 1:return "st";case 2:return "nd";case 3:return "rd";default:return "th";}}
+function addRecurring(){
+  const name=document.getElementById("rName").value.trim();
+  const cat=document.getElementById("rCategory").value;
+  const amt=Number(document.getElementById("rAmount").value);
+  const dueDay=Number(document.getElementById("rDueDay").value)||null;
+  if(!amt){alert("Enter an amount");return;}
+  recurringExpenses.push({id:Date.now(),name,category:cat,amount:amt,dueDay,paidMonth:null});
+  document.getElementById("rName").value="";document.getElementById("rAmount").value="";document.getElementById("rDueDay").value="";
+  save();renderRecurring();
+}
+function togglePaid(id){
+  const r=recurringExpenses.find(x=>x.id===id);if(!r)return;
+  if(r.paidMonth===monthKey){
+    r.paidMonth=null;
+    // remove the auto-added transaction
+    transactions=transactions.filter(t=>t.recurId!==id||new Date(t.date).getMonth()!==CM||new Date(t.date).getFullYear()!==CY);
+  }else{
+    r.paidMonth=monthKey;
+    // post it as a real expense transaction
+    transactions.push({id:Date.now(),recurId:id,date:new Date().toISOString().split("T")[0],type:"expense",category:r.category,amount:r.amount,note:(r.name||r.category)+" (recurring)",tags:["recurring"]});
+  }
+  save();renderRecurring();
+}
+function removeRecurring(id){if(!confirm("Remove this recurring bill?"))return;recurringExpenses=recurringExpenses.filter(r=>r.id!==id);save();renderRecurring();}
 
-            const deleteTransaction = (id) => setTransactions(prev => prev.filter(t => t.id !== id));
+function addTransaction(){
+  const date=document.getElementById("fDate").value;const category=document.getElementById("fCategory").value;
+  const amount=Number(document.getElementById("fAmount").value);const note=document.getElementById("fNote").value;
+  const tags=document.getElementById("fTags").value.split(",").map(t=>t.trim()).filter(t=>t);
+  if(!date||!amount){alert("Date and amount are required!");return;}
+  transactions.push({id:Date.now(),date,type:formType,category,amount,note,tags});save();
+  document.getElementById("fAmount").value="";document.getElementById("fNote").value="";document.getElementById("fTags").value="";
+  closeSheet();renderTab(currentTab);
+}
 
-            const addRecurringExpense = (category, amount) => {
-                setRecurringExpenses(prev => [...prev, { id: Date.now(), category, amount }]);
-            };
+function exportCSV(){const rows=[["Date","Type","Category","Amount","Note","Tags"],...transactions.map(t=>[t.date,t.type,t.category,t.amount,t.note,t.tags.join(";")])];download(rows.map(r=>r.join(",")).join("\n"),"expenses.csv","text/csv");}
+function exportJSON(){download(JSON.stringify({transactions,budgets,savingsGoal,recurringExpenses},null,2),"expense-backup.json","application/json");}
+function importJSON(input){const f=input.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{try{const d=JSON.parse(e.target.result);if(d.transactions)transactions=d.transactions;if(d.budgets)budgets=d.budgets;if(d.savingsGoal)savingsGoal=d.savingsGoal;if(d.recurringExpenses)recurringExpenses=d.recurringExpenses;save();alert("Imported!");renderTab(currentTab);}catch{alert("Invalid file.");}};r.readAsText(f);}
+function clearData(){if(!confirm("Delete ALL data?"))return;transactions=[];budgets={};savingsGoal=10000;recurringExpenses=[];save();alert("Cleared.");renderTab(currentTab);}
+function download(c,fn,ty){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([c],{type:ty}));a.download=fn;a.click();}
 
-            const removeRecurringExpense = (id) => setRecurringExpenses(prev => prev.filter(r => r.id !== id));
+// ---- Background image ----
+function applyBg(){
+  const img=document.getElementById("bgImage");
+  const dim=document.getElementById("bgDim");
+  if(bgImage){
+    img.style.backgroundImage=`url(${bgImage})`;
+    img.style.filter=`blur(${bgBlur}px)`;
+    img.style.transform="scale(1.1)"; // hide blurred edges
+    img.classList.add("show");
+    dim.classList.add("show");
+    dim.style.background=lightMode?`rgba(255,255,255,${bgDim/100})`:`rgba(10,10,20,${bgDim/100})`;
+  }else{
+    img.classList.remove("show");
+    dim.classList.remove("show");
+  }
+}
+function setBgImage(input){
+  const file=input.files[0];if(!file)return;
+  if(file.size>4.5*1024*1024){alert("Image is large and may not save. Try one under ~4MB or it'll only last this session.");}
+  const reader=new FileReader();
+  reader.onload=e=>{
+    bgImage=e.target.result;
+    try{localStorage.setItem("bgImage",bgImage);}catch(err){alert("Image too big to save permanently — it'll show now but reset when you reopen. Pick a smaller photo to keep it.");}
+    applyBg();showBlurControl();
+  };
+  reader.readAsDataURL(file);
+}
+function clearBgImage(){bgImage=null;localStorage.removeItem("bgImage");applyBg();showBlurControl();}
+function setBlur(v){bgBlur=Number(v);localStorage.setItem("bgBlur",bgBlur);document.getElementById("blurLabel").textContent=bgBlur+"px";applyBg();}
+function setDim(v){bgDim=Number(v);localStorage.setItem("bgDim",bgDim);document.getElementById("dimLabel").textContent=bgDim+"%";applyBg();}
+function showBlurControl(){
+  const ctrl=document.getElementById("blurControl");if(!ctrl)return;
+  ctrl.style.display=bgImage?"block":"none";
+  document.getElementById("blurRange").value=bgBlur;
+  document.getElementById("blurLabel").textContent=bgBlur+"px";
+  document.getElementById("dimRange").value=bgDim;
+  document.getElementById("dimLabel").textContent=bgDim+"%";
+}
 
-            const exportToCSV = () => {
-                const headers = ["Date", "Type", "Category", "Amount", "Note", "Tags"];
-                const rows = transactions.map(t => [t.date, t.type, t.category, t.amount, t.note, t.tags.join(";")]);
-                const csv = [headers, ...rows].map(row => row.join(",")).join("\n");
-                const blob = new Blob([csv], { type: "text/csv" });
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement("a");
-                a.href = url;
-                a.download = `expenses-${new Date().toISOString().split("T")[0]}.csv`;
-                a.click();
-            };
+function destroyChart(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
+function gridColor(){return lightMode?"rgba(0,0,0,0.06)":"rgba(255,255,255,0.08)";}
+function tickColor(){return lightMode?"rgba(29,29,31,0.6)":"rgba(245,245,247,0.6)";}
+function mkPie(id,labels,data,colors){destroyChart(id);const c=document.getElementById(id);if(!c)return;charts[id]=new Chart(c,{type:"doughnut",data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:0,hoverOffset:8}]},options:{responsive:true,cutout:"62%",plugins:{legend:{position:"bottom",labels:{color:tickColor(),font:{size:11},boxWidth:12,padding:12}},tooltip:{callbacks:{label:x=>`${x.label}: ${fmt(x.raw)}`}}}}});}
+function mkLine(id,labels,ds){destroyChart(id);const c=document.getElementById(id);if(!c)return;charts[id]=new Chart(c,{type:"line",data:{labels,datasets:ds.map(d=>({label:d.label,data:d.data,borderColor:d.color,backgroundColor:d.color+"22",fill:true,tension:0.4,pointBackgroundColor:d.color,pointRadius:4,borderWidth:3}))},options:{responsive:true,scales:{x:{ticks:{color:tickColor(),font:{size:11}},grid:{display:false}},y:{ticks:{color:tickColor(),font:{size:11},callback:v=>`₹${(v/1000).toFixed(0)}k`},grid:{color:gridColor()}}},plugins:{legend:{labels:{color:tickColor(),font:{size:12}}},tooltip:{callbacks:{label:x=>`${x.dataset.label}: ${fmt(x.raw)}`}}}}});}
+function mkBar(id,labels,ds){destroyChart(id);const c=document.getElementById(id);if(!c)return;charts[id]=new Chart(c,{type:"bar",data:{labels,datasets:ds.map(d=>({label:d.label,data:d.data,backgroundColor:d.colors||d.color,borderRadius:6,borderSkipped:false}))},options:{responsive:true,scales:{x:{ticks:{color:tickColor(),font:{size:10}},grid:{display:false}},y:{ticks:{color:tickColor(),font:{size:11},callback:v=>`₹${(v/1000).toFixed(0)}k`},grid:{color:gridColor()}}},plugins:{legend:{labels:{color:tickColor(),font:{size:12}}},tooltip:{callbacks:{label:x=>`${x.dataset.label}: ${fmt(x.raw)}`}}}}});}
 
-            const exportToExcel = () => {
-                const wb = XLSX.utils.book_new();
-                const wsData = transactions.map(t => ({ Date: t.date, Type: t.type, Category: t.category, Amount: t.amount, Note: t.note, Tags: t.tags.join(";") }));
-                const ws = XLSX.utils.json_to_sheet(wsData);
-                XLSX.utils.book_append_sheet(wb, ws, "Transactions");
-                XLSX.writeFile(wb, `expenses-${new Date().toISOString().split("T")[0]}.xlsx`);
-            };
-
-            const formatINR = (n) => `₹${n.toLocaleString("en-IN")}`;
-            const tabs = ["overview", "budget", "savings", "transactions", "analytics", "recurring", "backup"];
-            const bgColor = lightMode ? "#ffffff" : "#1a1d2e";
-            const textColor = lightMode ? "#1f2937" : "#e2e8f0";
-            const secondaryBg = lightMode ? "#f3f4f6" : "#0f1117";
-            const borderColor = lightMode ? "#e5e7eb" : "#2d3748";
-
-            return (
-                <div style={{ fontFamily: "'Inter', 'Segoe UI', sans-serif", background: secondaryBg, minHeight: "100vh", color: textColor, padding: "0" }}>
-                    {/* Header */}
-                    <div style={{ background: lightMode ? "#f9fafb" : "linear-gradient(135deg, #1a1d2e 0%, #16213e 100%)", borderBottom: `1px solid ${borderColor}`, padding: "20px 24px 0" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-                            <div>
-                                <div style={{ fontSize: "11px", letterSpacing: "2px", color: lightMode ? "#6b7280" : "#64748b", textTransform: "uppercase", marginBottom: "4px" }}>Personal Finance</div>
-                                <div style={{ fontSize: "22px", fontWeight: "700", color: textColor }}>💰 Advanced Expense Dashboard</div>
-                            </div>
-                            <div style={{ display: "flex", gap: "10px" }}>
-                                <button onClick={() => setLightMode(!lightMode)} style={{ background: lightMode ? "#e5e7eb" : "#374151", color: textColor, border: "none", borderRadius: "10px", padding: "10px 14px", fontSize: "16px", cursor: "pointer" }}>
-                                    {lightMode ? "🌙" : "☀️"}
-                                </button>
-                                <button onClick={() => setShowAddForm(!showAddForm)} style={{ background: showAddForm ? "#374151" : "#6366f1", color: "#fff", border: "none", borderRadius: "10px", padding: "10px 18px", fontSize: "13px", fontWeight: "600", cursor: "pointer" }}>
-                                    {showAddForm ? "✕ Cancel" : "+ Add"}
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Add form */}
-                        {showAddForm && (
-                            <div style={{ background: bgColor, borderRadius: "12px", padding: "16px", marginBottom: "16px", border: `1px solid ${borderColor}`, display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr auto", gap: "10px", alignItems: "end" }}>
-                                <div>
-                                    <div style={{ fontSize: "11px", color: lightMode ? "#6b7280" : "#94a3b8", marginBottom: "4px" }}>Date</div>
-                                    <input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
-                                        style={{ width: "100%", background: secondaryBg, border: `1px solid ${borderColor}`, borderRadius: "8px", padding: "8px 10px", color: textColor, fontSize: "13px", boxSizing: "border-box" }} />
-                                </div>
-                                <div>
-                                    <div style={{ fontSize: "11px", color: lightMode ? "#6b7280" : "#94a3b8", marginBottom: "4px" }}>Type</div>
-                                    <select value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value, category: e.target.value === "expense" ? "Food" : "Salary" }))}
-                                        style={{ width: "100%", background: secondaryBg, border: `1px solid ${borderColor}`, borderRadius: "8px", padding: "8px 10px", color: textColor, fontSize: "13px", boxSizing: "border-box" }}>
-                                        <option value="expense">Expense</option>
-                                        <option value="credit">Credit</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <div style={{ fontSize: "11px", color: lightMode ? "#6b7280" : "#94a3b8", marginBottom: "4px" }}>Category</div>
-                                    <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
-                                        style={{ width: "100%", background: secondaryBg, border: `1px solid ${borderColor}`, borderRadius: "8px", padding: "8px 10px", color: textColor, fontSize: "13px", boxSizing: "border-box" }}>
-                                        {(form.type === "expense" ? EXPENSE_CATEGORIES : CREDIT_CATEGORIES).map(c => <option key={c}>{c}</option>)}
-                                    </select>
-                                </div>
-                                <div>
-                                    <div style={{ fontSize: "11px", color: lightMode ? "#6b7280" : "#94a3b8", marginBottom: "4px" }}>Amount (₹)</div>
-                                    <input type="number" placeholder="0" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
-                                        style={{ width: "100%", background: secondaryBg, border: `1px solid ${borderColor}`, borderRadius: "8px", padding: "8px 10px", color: textColor, fontSize: "13px", boxSizing: "border-box" }} />
-                                </div>
-                                <div>
-                                    <div style={{ fontSize: "11px", color: lightMode ? "#6b7280" : "#94a3b8", marginBottom: "4px" }}>Tags</div>
-                                    <input type="text" placeholder="tag1, tag2" value={form.tags} onChange={e => setForm(f => ({ ...f, tags: e.target.value }))}
-                                        style={{ width: "100%", background: secondaryBg, border: `1px solid ${borderColor}`, borderRadius: "8px", padding: "8px 10px", color: textColor, fontSize: "13px", boxSizing: "border-box" }} />
-                                </div>
-                                <button onClick={addTransaction} style={{ background: "#10b981", color: "#fff", border: "none", borderRadius: "8px", padding: "8px 16px", fontSize: "13px", fontWeight: "600", cursor: "pointer", whiteSpace: "nowrap" }}>
-                                    Save
-                                </button>
-                            </div>
-                        )}
-
-                        {/* Tabs */}
-                        <div style={{ display: "flex", gap: "0", overflowX: "auto" }}>
-                            {tabs.map(tab => (
-                                <button key={tab} onClick={() => setActiveTab(tab)}
-                                    style={{
-                                        background: "transparent", border: "none", cursor: "pointer",
-                                        padding: "10px 18px", fontSize: "13px", fontWeight: "500",
-                                        color: activeTab === tab ? "#a78bfa" : lightMode ? "#6b7280" : "#64748b",
-                                        borderBottom: activeTab === tab ? "2px solid #a78bfa" : "2px solid transparent",
-                                        textTransform: "capitalize", transition: "all 0.15s", whiteSpace: "nowrap"
-                                    }}>
-                                    {tab}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    <div style={{ padding: "20px 24px" }}>
-                        {/* OVERVIEW TAB */}
-                        {activeTab === "overview" && (
-                            <div>
-                                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "14px", marginBottom: "22px" }}>
-                                    {[
-                                        { label: "Total Credits", value: formatINR(totalCredits), color: "#10b981", sub: `${MONTHS[currentMonth]} ${currentYear}` },
-                                        { label: "Total Expenses", value: formatINR(totalExpenses), color: "#f97316", sub: "This month" },
-                                        { label: "Balance", value: formatINR(balance), color: balance >= 0 ? "#6366f1" : "#ef4444", sub: balance >= 0 ? "Surplus" : "Deficit" },
-                                        { label: "Savings Goal", value: formatINR(monthlySavingsGoal), color: "#a78bfa", sub: balance >= monthlySavingsGoal ? "✓ On track" : "Pending" },
-                                    ].map(card => (
-                                        <div key={card.label} style={{ background: bgColor, borderRadius: "14px", padding: "18px", border: `1px solid ${borderColor}` }}>
-                                            <div style={{ fontSize: "11px", color: lightMode ? "#6b7280" : "#64748b", letterSpacing: "0.5px", marginBottom: "8px", textTransform: "uppercase" }}>{card.label}</div>
-                                            <div style={{ fontSize: "24px", fontWeight: "700", color: card.color, marginBottom: "4px" }}>{card.value}</div>
-                                            <div style={{ fontSize: "11px", color: lightMode ? "#6b7280" : "#475569" }}>{card.sub}</div>
-                                        </div>
-                                    ))}
-                                </div>
-
-                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px", marginBottom: "14px" }}>
-                                    <div style={{ background: bgColor, borderRadius: "14px", padding: "20px", border: `1px solid ${borderColor}` }}>
-                                        <div style={{ fontSize: "13px", fontWeight: "600", color: lightMode ? "#6b7280" : "#94a3b8", marginBottom: "16px" }}>Income Sources</div>
-                                        <ResponsiveContainer width="100%" height={200}>
-                                            <PieChart>
-                                                <Pie data={creditCategoryData.filter(c => c.amount > 0)} dataKey="amount" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={80}>
-                                                    {creditCategoryData.filter(c => c.amount > 0).map((entry) => <Cell key={entry.name} fill={CAT_COLORS[entry.name]} />)}
-                                                </Pie>
-                                                <Tooltip formatter={(v) => formatINR(v)} contentStyle={{ background: bgColor, border: `1px solid ${borderColor}`, borderRadius: "8px", color: textColor }} />
-                                            </PieChart>
-                                        </ResponsiveContainer>
-                                    </div>
-
-                                    <div style={{ background: bgColor, borderRadius: "14px", padding: "20px", border: `1px solid ${borderColor}` }}>
-                                        <div style={{ fontSize: "13px", fontWeight: "600", color: lightMode ? "#6b7280" : "#94a3b8", marginBottom: "16px" }}>Spending by Category</div>
-                                        <ResponsiveContainer width="100%" height={200}>
-                                            <PieChart>
-                                                <Pie data={pieData} dataKey="spent" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={80}>
-                                                    {pieData.map((entry) => <Cell key={entry.name} fill={CAT_COLORS[entry.name]} />)}
-                                                </Pie>
-                                                <Tooltip formatter={(v) => formatINR(v)} contentStyle={{ background: bgColor, border: `1px solid ${borderColor}`, borderRadius: "8px", color: textColor }} />
-                                            </PieChart>
-                                        </ResponsiveContainer>
-                                    </div>
-                                </div>
-
-                                <div style={{ background: bgColor, borderRadius: "14px", padding: "20px", border: `1px solid ${borderColor}` }}>
-                                    <div style={{ fontSize: "13px", fontWeight: "600", color: lightMode ? "#6b7280" : "#94a3b8", marginBottom: "16px" }}>Monthly Trend</div>
-                                    <ResponsiveContainer width="100%" height={220}>
-                                        <LineChart data={monthlyTrend}>
-                                            <XAxis dataKey="month" tick={{ fill: lightMode ? "#6b7280" : "#64748b", fontSize: 11 }} axisLine={false} tickLine={false} />
-                                            <YAxis tick={{ fill: lightMode ? "#6b7280" : "#64748b", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `₹${(v/1000).toFixed(0)}k`} />
-                                            <Tooltip formatter={(v) => formatINR(v)} contentStyle={{ background: bgColor, border: `1px solid ${borderColor}`, borderRadius: "8px", color: textColor }} />
-                                            <Legend wrapperStyle={{ color: lightMode ? "#6b7280" : "#94a3b8" }} />
-                                            <Line type="monotone" dataKey="credits" stroke="#10b981" strokeWidth={2.5} dot={{ fill: "#10b981", r: 4 }} name="Income" />
-                                            <Line type="monotone" dataKey="expenses" stroke="#f97316" strokeWidth={2.5} dot={{ fill: "#f97316", r: 4 }} name="Expenses" />
-                                        </LineChart>
-                                    </ResponsiveContainer>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* BUDGET TAB */}
-                        {activeTab === "budget" && (
-                            <div>
-                                <div style={{ fontSize: "13px", color: lightMode ? "#6b7280" : "#64748b", marginBottom: "18px" }}>Click any budget to edit it.</div>
-                                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "14px", marginBottom: "22px" }}>
-                                    {categoryData.map(cat => {
-                                        const pct = Math.min(100, Math.round((cat.spent / cat.budget) * 100));
-                                        const over = cat.spent > cat.budget;
-                                        return (
-                                            <div key={cat.name} style={{ background: bgColor, borderRadius: "14px", padding: "18px", border: `1px solid ${over ? (lightMode ? "#fee2e2" : "#7f1d1d") : borderColor}` }}>
-                                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
-                                                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                                                        <div style={{ width: "10px", height: "10px", borderRadius: "50%", background: CAT_COLORS[cat.name] }} />
-                                                        <span style={{ fontSize: "14px", fontWeight: "600", color: textColor }}>{cat.name}</span>
-                                                    </div>
-                                                    {over && <span style={{ fontSize: "10px", background: "#7f1d1d", color: "#fca5a5", padding: "2px 8px", borderRadius: "20px" }}>Over!</span>}
-                                                </div>
-                                                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px", fontSize: "12px" }}>
-                                                    <span style={{ color: lightMode ? "#6b7280" : "#94a3b8" }}>Spent: <strong style={{ color: over ? "#ef4444" : textColor }}>{formatINR(cat.spent)}</strong></span>
-                                                    <span style={{ color: lightMode ? "#6b7280" : "#94a3b8" }}>
-                                                        Budget:{" "}
-                                                        {editingBudget === cat.name
-                                                            ? <input type="number" defaultValue={cat.budget} autoFocus
-                                                                  onBlur={e => { setBudgets(b => ({ ...b, [cat.name]: Number(e.target.value) })); setEditingBudget(null); }}
-                                                                  onKeyDown={e => { if (e.key === "Enter") e.target.blur(); }}
-                                                                  style={{ width: "70px", background: secondaryBg, border: `1px solid #6366f1`, borderRadius: "6px", padding: "2px 6px", color: textColor, fontSize: "12px" }} />
-                                                            : <strong style={{ color: "#a78bfa", cursor: "pointer", textDecoration: "underline dotted" }} onClick={() => setEditingBudget(cat.name)}>{formatINR(cat.budget)}</strong>
-                                                        }
-                                                    </span>
-                                                </div>
-                                                <div style={{ background: secondaryBg, borderRadius: "6px", height: "8px", overflow: "hidden" }}>
-                                                    <div style={{ height: "100%", width: `${pct}%`, background: over ? "#ef4444" : pct > 80 ? "#f59e0b" : CAT_COLORS[cat.name], borderRadius: "6px", transition: "width 0.4s ease" }} />
-                                                </div>
-                                                <div style={{ fontSize: "11px", color: lightMode ? "#6b7280" : "#64748b", marginTop: "5px" }}>{pct}% used</div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-
-                                <div style={{ background: bgColor, borderRadius: "14px", padding: "20px", border: `1px solid ${borderColor}` }}>
-                                    <div style={{ fontSize: "13px", fontWeight: "600", color: lightMode ? "#6b7280" : "#94a3b8", marginBottom: "16px" }}>Budget vs Actual</div>
-                                    <ResponsiveContainer width="100%" height={220}>
-                                        <BarChart data={categoryData} barGap={4}>
-                                            <XAxis dataKey="name" tick={{ fill: lightMode ? "#6b7280" : "#64748b", fontSize: 11 }} axisLine={false} tickLine={false} />
-                                            <YAxis tick={{ fill: lightMode ? "#6b7280" : "#64748b", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `₹${(v/1000).toFixed(0)}k`} />
-                                            <Tooltip formatter={(v) => formatINR(v)} contentStyle={{ background: bgColor, border: `1px solid ${borderColor}`, borderRadius: "8px", color: textColor }} />
-                                            <Legend wrapperStyle={{ color: lightMode ? "#6b7280" : "#94a3b8" }} />
-                                            <Bar dataKey="budget" name="Budget" fill={lightMode ? "#e5e7eb" : "#374151"} radius={[4, 4, 0, 0]} />
-                                            <Bar dataKey="spent" name="Spent" radius={[4, 4, 0, 0]}>
-                                                {categoryData.map(c => <Cell key={c.name} fill={CAT_COLORS[c.name]} />)}
-                                            </Bar>
-                                        </BarChart>
-                                    </ResponsiveContainer>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* SAVINGS TAB */}
-                        {activeTab === "savings" && (
-                            <div>
-                                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "14px", marginBottom: "22px" }}>
-                                    {[
-                                        { label: "Saved This Month", value: formatINR(Math.max(0, balance)), color: balance >= 0 ? "#10b981" : "#ef4444" },
-                                        { label: "Monthly Goal", value: formatINR(monthlySavingsGoal), color: "#a78bfa" },
-                                        { label: "Goal Progress", value: `${Math.min(100, Math.round((Math.max(0, balance) / monthlySavingsGoal) * 100))}%`, color: balance >= monthlySavingsGoal ? "#10b981" : "#f59e0b" },
-                                    ].map(card => (
-                                        <div key={card.label} style={{ background: bgColor, borderRadius: "14px", padding: "20px", border: `1px solid ${borderColor}` }}>
-                                            <div style={{ fontSize: "11px", color: lightMode ? "#6b7280" : "#64748b", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "8px" }}>{card.label}</div>
-                                            <div style={{ fontSize: "28px", fontWeight: "700", color: card.color }}>{card.value}</div>
-                                        </div>
-                                    ))}
-                                </div>
-
-                                <div style={{ background: bgColor, borderRadius: "14px", padding: "20px", border: `1px solid ${borderColor}`, marginBottom: "14px" }}>
-                                    <div style={{ fontSize: "13px", fontWeight: "600", color: lightMode ? "#6b7280" : "#94a3b8", marginBottom: "12px" }}>Set Monthly Savings Goal</div>
-                                    <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-                                        <input type="range" min={0} max={50000} step={500} value={monthlySavingsGoal}
-                                            onChange={e => setMonthlySavingsGoal(Number(e.target.value))}
-                                            style={{ flex: 1, accentColor: "#a78bfa" }} />
-                                        <span style={{ fontSize: "18px", fontWeight: "700", color: "#a78bfa", minWidth: "90px" }}>{formatINR(monthlySavingsGoal)}</span>
-                                    </div>
-                                    <div style={{ background: secondaryBg, borderRadius: "8px", height: "12px", overflow: "hidden", marginTop: "12px" }}>
-                                        <div style={{
-                                            height: "100%",
-                                            width: `${Math.min(100, Math.round((Math.max(0, balance) / monthlySavingsGoal) * 100))}%`,
-                                            background: balance >= monthlySavingsGoal ? "#10b981" : "linear-gradient(90deg, #6366f1, #a78bfa)",
-                                            borderRadius: "8px", transition: "width 0.4s ease"
-                                        }} />
-                                    </div>
-                                </div>
-
-                                <div style={{ background: bgColor, borderRadius: "14px", padding: "20px", border: `1px solid ${borderColor}` }}>
-                                    <div style={{ fontSize: "13px", fontWeight: "600", color: lightMode ? "#6b7280" : "#94a3b8", marginBottom: "16px" }}>Monthly Net Flow</div>
-                                    <ResponsiveContainer width="100%" height={200}>
-                                        <BarChart data={monthlyTrend.map(m => ({ ...m, net: m.credits - m.expenses }))}>
-                                            <XAxis dataKey="month" tick={{ fill: lightMode ? "#6b7280" : "#64748b", fontSize: 11 }} axisLine={false} tickLine={false} />
-                                            <YAxis tick={{ fill: lightMode ? "#6b7280" : "#64748b", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `₹${(v/1000).toFixed(0)}k`} />
-                                            <Tooltip formatter={(v) => formatINR(v)} contentStyle={{ background: bgColor, border: `1px solid ${borderColor}`, borderRadius: "8px", color: textColor }} />
-                                            <Bar dataKey="net" fill="#6366f1" radius={[6, 6, 0, 0]} />
-                                        </BarChart>
-                                    </ResponsiveContainer>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* TRANSACTIONS TAB */}
-                        {activeTab === "transactions" && (
-                            <div>
-                                <div style={{ display: "flex", gap: "10px", marginBottom: "14px" }}>
-                                    <input type="text" placeholder="Filter by tag..." value={searchTag} onChange={e => setSearchTag(e.target.value)}
-                                        style={{ flex: 1, background: bgColor, border: `1px solid ${borderColor}`, borderRadius: "8px", padding: "10px 12px", color: textColor, fontSize: "13px" }} />
-                                </div>
-                                <div style={{ fontSize: "13px", color: lightMode ? "#6b7280" : "#64748b", marginBottom: "14px" }}>{filteredTransactions.length} transactions</div>
-                                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                                    {[...filteredTransactions].sort((a, b) => new Date(b.date) - new Date(a.date)).map(t => (
-                                        <div key={t.id} style={{ background: bgColor, borderRadius: "12px", padding: "14px 18px", border: `1px solid ${borderColor}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                            <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-                                                <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: `${CAT_COLORS[t.category]}22`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                                                    <div style={{ width: "12px", height: "12px", borderRadius: "50%", background: CAT_COLORS[t.category] }} />
-                                                </div>
-                                                <div>
-                                                    <div style={{ fontSize: "14px", fontWeight: "500", color: textColor }}>{t.note || t.category}</div>
-                                                    <div style={{ fontSize: "11px", color: lightMode ? "#6b7280" : "#64748b", marginTop: "2px" }}>
-                                                        {t.category} · {t.type} · {new Date(t.date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })} {t.tags.length > 0 && `· ${t.tags.join(", ")}`}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-                                                <span style={{ fontSize: "16px", fontWeight: "700", color: t.type === "expense" ? "#f97316" : "#10b981" }}>{t.type === "expense" ? "−" : "+"}{formatINR(t.amount)}</span>
-                                                <button onClick={() => deleteTransaction(t.id)}
-                                                    style={{ background: "transparent", border: "none", color: "#ef4444", cursor: "pointer", fontSize: "16px", opacity: 0.5, padding: "4px" }}
-                                                    title="Delete">✕</button>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* ANALYTICS TAB */}
-                        {activeTab === "analytics" && (
-                            <div>
-                                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "14px", marginBottom: "22px" }}>
-                                    {[
-                                        { label: "Avg Daily Spend", value: formatINR(stats.avgDaily), color: "#f59e0b" },
-                                        { label: "Largest Transaction", value: formatINR(stats.largestTransaction), color: "#ef4444" },
-                                        { label: "Transactions", value: stats.transactionCount, color: "#6366f1" },
-                                        { label: "Total Income", value: formatINR(stats.totalCredits), color: "#10b981" },
-                                    ].map(card => (
-                                        <div key={card.label} style={{ background: bgColor, borderRadius: "14px", padding: "20px", border: `1px solid ${borderColor}` }}>
-                                            <div style={{ fontSize: "11px", color: lightMode ? "#6b7280" : "#64748b", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "8px" }}>{card.label}</div>
-                                            <div style={{ fontSize: "28px", fontWeight: "700", color: card.color }}>{card.value}</div>
-                                        </div>
-                                    ))}
-                                </div>
-
-                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
-                                    <div style={{ background: bgColor, borderRadius: "14px", padding: "20px", border: `1px solid ${borderColor}` }}>
-                                        <div style={{ fontSize: "13px", fontWeight: "600", color: lightMode ? "#6b7280" : "#94a3b8", marginBottom: "16px" }}>Spending Distribution</div>
-                                        <ResponsiveContainer width="100%" height={200}>
-                                            <BarChart data={categoryData.filter(c => c.spent > 0).sort((a, b) => b.spent - a.spent).slice(0, 8)}>
-                                                <XAxis dataKey="name" tick={{ fill: lightMode ? "#6b7280" : "#64748b", fontSize: 10 }} axisLine={false} tickLine={false} angle={-45} textAnchor="end" />
-                                                <YAxis tick={{ fill: lightMode ? "#6b7280" : "#64748b", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `₹${(v/1000).toFixed(0)}k`} />
-                                                <Tooltip formatter={(v) => formatINR(v)} contentStyle={{ background: bgColor, border: `1px solid ${borderColor}`, borderRadius: "8px", color: textColor }} />
-                                                <Bar dataKey="spent" radius={[6, 6, 0, 0]}>
-                                                    {categoryData.filter(c => c.spent > 0).map(c => <Cell key={c.name} fill={CAT_COLORS[c.name]} />)}
-                                                </Bar>
-                                            </BarChart>
-                                        </ResponsiveContainer>
-                                    </div>
-
-                                    <div style={{ background: bgColor, borderRadius: "14px", padding: "20px", border: `1px solid ${borderColor}` }}>
-                                        <div style={{ fontSize: "13px", fontWeight: "600", color: lightMode ? "#6b7280" : "#94a3b8", marginBottom: "16px" }}>Year-to-Date Comparison</div>
-                                        <div style={{ display: "flex", gap: "10px", marginBottom: "12px" }}>
-                                            <button onClick={() => setCompareYear(compareYear - 1)} style={{ background: "#374151", color: "#fff", border: "none", borderRadius: "6px", padding: "6px 12px", fontSize: "12px", cursor: "pointer" }}>←</button>
-                                            <span style={{ fontSize: "14px", fontWeight: "600", color: textColor, flex: 1, textAlign: "center" }}>{compareYear}</span>
-                                            <button onClick={() => setCompareYear(compareYear + 1)} style={{ background: "#374151", color: "#fff", border: "none", borderRadius: "6px", padding: "6px 12px", fontSize: "12px", cursor: "pointer" }}>→</button>
-                                        </div>
-                                        <ResponsiveContainer width="100%" height={160}>
-                                            <BarChart data={monthlyTrend}>
-                                                <XAxis dataKey="month" tick={{ fill: lightMode ? "#6b7280" : "#64748b", fontSize: 10 }} axisLine={false} tickLine={false} />
-                                                <YAxis tick={{ fill: lightMode ? "#6b7280" : "#64748b", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `₹${(v/1000).toFixed(0)}k`} />
-                                                <Tooltip formatter={(v) => formatINR(v)} contentStyle={{ background: bgColor, border: `1px solid ${borderColor}`, borderRadius: "8px", color: textColor }} />
-                                                <Legend wrapperStyle={{ color: lightMode ? "#6b7280" : "#94a3b8" }} />
-                                                <Bar dataKey="expenses" fill="#f97316" name="Expenses" radius={[4, 4, 0, 0]} />
-                                                <Bar dataKey="credits" fill="#10b981" name="Income" radius={[4, 4, 0, 0]} />
-                                            </BarChart>
-                                        </ResponsiveContainer>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* RECURRING TAB */}
-                        {activeTab === "recurring" && (
-                            <div>
-                                <div style={{ background: bgColor, borderRadius: "14px", padding: "20px", border: `1px solid ${borderColor}`, marginBottom: "14px" }}>
-                                    <div style={{ fontSize: "13px", fontWeight: "600", color: lightMode ? "#6b7280" : "#94a3b8", marginBottom: "16px" }}>Set Up Recurring Expenses</div>
-                                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: "10px", alignItems: "end" }}>
-                                        <div>
-                                            <div style={{ fontSize: "11px", color: lightMode ? "#6b7280" : "#94a3b8", marginBottom: "4px" }}>Category</div>
-                                            <select id="recurringCategory" style={{ width: "100%", background: secondaryBg, border: `1px solid ${borderColor}`, borderRadius: "8px", padding: "8px 10px", color: textColor, fontSize: "13px" }}>
-                                                {EXPENSE_CATEGORIES.map(c => <option key={c}>{c}</option>)}
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <div style={{ fontSize: "11px", color: lightMode ? "#6b7280" : "#94a3b8", marginBottom: "4px" }}>Amount (₹)</div>
-                                            <input type="number" id="recurringAmount" placeholder="0" style={{ width: "100%", background: secondaryBg, border: `1px solid ${borderColor}`, borderRadius: "8px", padding: "8px 10px", color: textColor, fontSize: "13px" }} />
-                                        </div>
-                                        <button onClick={() => {
-                                            const cat = document.getElementById("recurringCategory").value;
-                                            const amt = Number(document.getElementById("recurringAmount").value);
-                                            if (amt > 0) addRecurringExpense(cat, amt);
-                                        }} style={{ background: "#10b981", color: "#fff", border: "none", borderRadius: "8px", padding: "8px 16px", fontSize: "13px", fontWeight: "600", cursor: "pointer", whiteSpace: "nowrap" }}>
-                                            Add
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "14px" }}>
-                                    {recurringExpenses.map(r => (
-                                        <div key={r.id} style={{ background: bgColor, borderRadius: "12px", padding: "16px", border: `1px solid ${borderColor}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                            <div>
-                                                <div style={{ fontSize: "14px", fontWeight: "600", color: textColor }}>{r.category}</div>
-                                                <div style={{ fontSize: "13px", fontWeight: "700", color: "#f59e0b", marginTop: "4px" }}>{formatINR(r.amount)}/month</div>
-                                            </div>
-                                            <button onClick={() => removeRecurringExpense(r.id)} style={{ background: "transparent", border: "none", color: "#ef4444", cursor: "pointer", fontSize: "16px" }}>✕</button>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* BACKUP TAB */}
-                        {activeTab === "backup" && (
-                            <div>
-                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
-                                    <div style={{ background: bgColor, borderRadius: "14px", padding: "20px", border: `1px solid ${borderColor}` }}>
-                                        <div style={{ fontSize: "14px", fontWeight: "600", color: textColor, marginBottom: "12px" }}>📊 Export Data</div>
-                                        <div style={{ fontSize: "12px", color: lightMode ? "#6b7280" : "#94a3b8", marginBottom: "16px" }}>Download your transactions for backup or analysis.</div>
-                                        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                                            <button onClick={exportToCSV} style={{ background: "#6366f1", color: "#fff", border: "none", borderRadius: "8px", padding: "10px 16px", fontSize: "13px", fontWeight: "600", cursor: "pointer" }}>
-                                                📄 Export as CSV
-                                            </button>
-                                            <button onClick={exportToExcel} style={{ background: "#10b981", color: "#fff", border: "none", borderRadius: "8px", padding: "10px 16px", fontSize: "13px", fontWeight: "600", cursor: "pointer" }}>
-                                                📈 Export as Excel
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    <div style={{ background: bgColor, borderRadius: "14px", padding: "20px", border: `1px solid ${borderColor}` }}>
-                                        <div style={{ fontSize: "14px", fontWeight: "600", color: textColor, marginBottom: "12px" }}>💾 Backup & Restore</div>
-                                        <div style={{ fontSize: "12px", color: lightMode ? "#6b7280" : "#94a3b8", marginBottom: "16px" }}>All data is automatically saved to your browser.</div>
-                                        <button onClick={() => {
-                                            const backup = { transactions, budgets, monthlySavingsGoal, recurringExpenses };
-                                            const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
-                                            const url = window.URL.createObjectURL(blob);
-                                            const a = document.createElement("a");
-                                            a.href = url;
-                                            a.download = `expense-backup-${new Date().toISOString().split("T")[0]}.json`;
-                                            a.click();
-                                        }} style={{ background: "#a78bfa", color: "#fff", border: "none", borderRadius: "8px", padding: "10px 16px", fontSize: "13px", fontWeight: "600", cursor: "pointer", width: "100%" }}>
-                                            💾 Download Backup
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <div style={{ background: bgColor, borderRadius: "14px", padding: "20px", border: `1px solid ${borderColor}`, marginTop: "14px" }}>
-                                    <div style={{ fontSize: "13px", fontWeight: "600", color: lightMode ? "#6b7280" : "#94a3b8", marginBottom: "12px" }}>ℹ️ About This App</div>
-                                    <div style={{ fontSize: "12px", color: lightMode ? "#6b7280" : "#94a3b8", lineHeight: "1.6" }}>
-                                        <p>✓ All data is stored locally on your device</p>
-                                        <p>✓ No internet connection required after first load</p>
-                                        <p>✓ No ads or tracking</p>
-                                        <p>✓ Works on phone, tablet, and desktop</p>
-                                        <p style={{ marginTop: "10px", fontSize: "11px" }}>Version 2.0 • Advanced Expense Tracker</p>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            );
-        }
-
-        ReactDOM.render(<AdvancedExpenseDashboard />, document.getElementById("root"));
-    </script>
+if(lightMode){document.body.className="light";document.getElementById("themeBtn").textContent="🌙";}
+applyBg();showBlurControl();
+updateCategories();populateRecurringCats();renderOverview();
+</script>
 </body>
 </html>
