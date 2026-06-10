@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Expense Dashboard</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.10.3/recharts.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', 'Segoe UI', sans-serif; background: #0f1117; color: #e2e8f0; transition: background 0.3s; }
+        body.light-mode { background: #f9fafb; color: #1f2937; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useMemo, useEffect } = React;
+        const { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } = window.Recharts;
+
+        const EXPENSE_CATEGORIES = ["Food", "Transport", "Rent", "Entertainment", "Health", "Shopping", "Utilities", "Insurance", "Education", "Travel", "Subscriptions", "Personal Care", "Gifts", "Other"];
+        const CREDIT_CATEGORIES = ["Salary", "Freelance", "Investments", "Bonus", "Refunds", "Gifts", "Side Income", "Other"];
+
+        const CAT_COLORS = {
+            Food: "#f97316", Transport: "#3b82f6", Rent: "#8b5cf6", Entertainment: "#ec4899", 
+            Health: "#10b981", Shopping: "#f59e0b", Utilities: "#06b6d4", Insurance: "#8b5cf6",
+            Education: "#a78bfa", Travel: "#f97316", Subscriptions: "#6366f1", "Personal Care": "#ec4899",
+            Gifts: "#f472b6", Other: "#6b7280",
+            Salary: "#10b981", Freelance: "#06b6d4", Investments: "#f59e0b", Bonus: "#a78bfa",
+            Refunds: "#10b981", "Side Income": "#3b82f6",
+        };
+
+        const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+        const DEFAULT_BUDGETS = {
+            Food: 5000, Transport: 3000, Rent: 10000, Entertainment: 2000, Health: 2000, 
+            Shopping: 3000, Utilities: 2000, Insurance: 1500, Education: 2000, Travel: 3000,
+            Subscriptions: 1000, "Personal Care": 1000, Gifts: 2000, Other: 1000
+        };
+
+        function AdvancedExpenseDashboard() {
+            const [transactions, setTransactions] = useState(() => {
+                const saved = localStorage.getItem("transactions");
+                return saved ? JSON.parse(saved) : [
+                    { id: 1, date: "2026-06-01", type: "expense", category: "Rent", amount: 10000, note: "Monthly rent", tags: ["housing"] },
+                    { id: 2, date: "2026-06-03", type: "expense", category: "Food", amount: 1200, note: "Groceries", tags: ["groceries"] },
+                    { id: 3, date: "2026-06-05", type: "expense", category: "Transport", amount: 800, note: "Petrol", tags: ["fuel"] },
+                    { id: 4, date: "2026-06-07", type: "expense", category: "Entertainment", amount: 600, note: "OTT subscription", tags: ["subscription"] },
+                    { id: 5, date: "2026-06-01", type: "credit", category: "Salary", amount: 50000, note: "Monthly salary", tags: ["income"] },
+                    { id: 6, date: "2026-05-15", type: "credit", category: "Freelance", amount: 5000, note: "Project payment", tags: ["side-income"] },
+                ];
+            });
+
+            const [budgets, setBudgets] = useState(() => {
+                const saved = localStorage.getItem("budgets");
+                return saved ? JSON.parse(saved) : DEFAULT_BUDGETS;
+            });
+
+            const [activeTab, setActiveTab] = useState("overview");
+            const [monthlySavingsGoal, setMonthlySavingsGoal] = useState(() => {
+                const saved = localStorage.getItem("savingsGoal");
+                return saved ? JSON.parse(saved) : 8000;
+            });
+            const [lightMode, setLightMode] = useState(() => localStorage.getItem("lightMode") === "true");
+            const [form, setForm] = useState({ date: "", type: "expense", category: "Food", amount: "", note: "", tags: "" });
+            const [editingBudget, setEditingBudget] = useState(null);
+            const [showAddForm, setShowAddForm] = useState(false);
+            const [searchTag, setSearchTag] = useState("");
+            const [recurringExpenses, setRecurringExpenses] = useState(() => {
+                const saved = localStorage.getItem("recurringExpenses");
+                return saved ? JSON.parse(saved) : [];
+            });
+            const [compareYear, setCompareYear] = useState(new Date().getFullYear());
+
+            useEffect(() => {
+                localStorage.setItem("transactions", JSON.stringify(transactions));
+            }, [transactions]);
+
+            useEffect(() => {
+                localStorage.setItem("budgets", JSON.stringify(budgets));
+            }, [budgets]);
+
+            useEffect(() => {
+                localStorage.setItem("savingsGoal", JSON.stringify(monthlySavingsGoal));
+            }, [monthlySavingsGoal]);
+
+            useEffect(() => {
+                localStorage.setItem("lightMode", lightMode);
+                document.body.className = lightMode ? "light-mode" : "";
+            }, [lightMode]);
+
+            useEffect(() => {
+                localStorage.setItem("recurringExpenses", JSON.stringify(recurringExpenses));
+            }, [recurringExpenses]);
+
+            const now = new Date();
+            const currentMonth = now.getMonth();
+            const currentYear = now.getFullYear();
+
+            const thisMonthTransactions = useMemo(() =>
+                transactions.filter(t => {
+                    const d = new Date(t.date);
+                    return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+                }), [transactions]);
+
+            const thisMonthExpenses = thisMonthTransactions.filter(t => t.type === "expense");
+            const thisMonthCredits = thisMonthTransactions.filter(t => t.type === "credit");
+
+            const totalExpenses = thisMonthExpenses.reduce((s, t) => s + t.amount, 0);
+            const totalCredits = thisMonthCredits.reduce((s, t) => s + t.amount, 0);
+            const totalBudget = Object.values(budgets).reduce((s, v) => s + v, 0);
+            const balance = totalCredits - totalExpenses;
+
+            const filteredTransactions = useMemo(() => {
+                return transactions.filter(t => {
+                    if (searchTag && !t.tags.includes(searchTag)) return false;
+                    return true;
+                });
+            }, [transactions, searchTag]);
+
+            const categoryData = EXPENSE_CATEGORIES.map(cat => ({
+                name: cat,
+                spent: thisMonthExpenses.filter(e => e.category === cat).reduce((s, e) => s + e.amount, 0),
+                budget: budgets[cat],
+            }));
+
+            const creditCategoryData = CREDIT_CATEGORIES.map(cat => ({
+                name: cat,
+                amount: thisMonthCredits.filter(c => c.category === cat).reduce((s, c) => s + c.amount, 0),
+            }));
+
+            const monthlyTrend = Array.from({ length: 12 }, (_, i) => {
+                const d = new Date(compareYear, i, 1);
+                const m = d.getMonth();
+                const y = d.getFullYear();
+                const expenses = transactions
+                    .filter(t => t.type === "expense" && { const d2 = new Date(t.date); return d2.getMonth() === m && d2.getFullYear() === y; })
+                    .reduce((s, t) => s + t.amount, 0);
+                const credits = transactions
+                    .filter(t => t.type === "credit" && { const d2 = new Date(t.date); return d2.getMonth() === m && d2.getFullYear() === y; })
+                    .reduce((s, t) => s + t.amount, 0);
+                return { month: MONTHS[m], expenses: expenses, credits: credits };
+            });
+
+            const stats = {
+                avgDaily: thisMonthExpenses.length > 0 ? Math.round(totalExpenses / 30) : 0,
+                largestTransaction: thisMonthExpenses.length > 0 ? Math.max(...thisMonthExpenses.map(t => t.amount)) : 0,
+                transactionCount: thisMonthExpenses.length,
+                totalCredits: totalCredits,
+            };
+
+            const pieData = categoryData.filter(c => c.spent > 0);
+
+            const addTransaction = () => {
+                if (!form.date || !form.amount || isNaN(Number(form.amount))) return;
+                const tags = form.tags.split(",").map(t => t.trim()).filter(t => t);
+                setTransactions(prev => [...prev, {
+                    id: Date.now(),
+                    date: form.date,
+                    type: form.type,
+                    category: form.category,
+                    amount: Number(form.amount),
+                    note: form.note,
+                    tags: tags,
+                }]);
+                setForm({ date: "", type: "expense", category: "Food", amount: "", note: "", tags: "" });
+                setShowAddForm(false);
+            };
+
+            const deleteTransaction = (id) => setTransactions(prev => prev.filter(t => t.id !== id));
+
+            const addRecurringExpense = (category, amount) => {
+                setRecurringExpenses(prev => [...prev, { id: Date.now(), category, amount }]);
+            };
+
+            const removeRecurringExpense = (id) => setRecurringExpenses(prev => prev.filter(r => r.id !== id));
+
+            const exportToCSV = () => {
+                const headers = ["Date", "Type", "Category", "Amount", "Note", "Tags"];
+                const rows = transactions.map(t => [t.date, t.type, t.category, t.amount, t.note, t.tags.join(";")]);
+                const csv = [headers, ...rows].map(row => row.join(",")).join("\n");
+                const blob = new Blob([csv], { type: "text/csv" });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `expenses-${new Date().toISOString().split("T")[0]}.csv`;
+                a.click();
+            };
+
+            const exportToExcel = () => {
+                const wb = XLSX.utils.book_new();
+                const wsData = transactions.map(t => ({ Date: t.date, Type: t.type, Category: t.category, Amount: t.amount, Note: t.note, Tags: t.tags.join(";") }));
+                const ws = XLSX.utils.json_to_sheet(wsData);
+                XLSX.utils.book_append_sheet(wb, ws, "Transactions");
+                XLSX.writeFile(wb, `expenses-${new Date().toISOString().split("T")[0]}.xlsx`);
+            };
+
+            const formatINR = (n) => `₹${n.toLocaleString("en-IN")}`;
+            const tabs = ["overview", "budget", "savings", "transactions", "analytics", "recurring", "backup"];
+            const bgColor = lightMode ? "#ffffff" : "#1a1d2e";
+            const textColor = lightMode ? "#1f2937" : "#e2e8f0";
+            const secondaryBg = lightMode ? "#f3f4f6" : "#0f1117";
+            const borderColor = lightMode ? "#e5e7eb" : "#2d3748";
+
+            return (
+                <div style={{ fontFamily: "'Inter', 'Segoe UI', sans-serif", background: secondaryBg, minHeight: "100vh", color: textColor, padding: "0" }}>
+                    {/* Header */}
+                    <div style={{ background: lightMode ? "#f9fafb" : "linear-gradient(135deg, #1a1d2e 0%, #16213e 100%)", borderBottom: `1px solid ${borderColor}`, padding: "20px 24px 0" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+                            <div>
+                                <div style={{ fontSize: "11px", letterSpacing: "2px", color: lightMode ? "#6b7280" : "#64748b", textTransform: "uppercase", marginBottom: "4px" }}>Personal Finance</div>
+                                <div style={{ fontSize: "22px", fontWeight: "700", color: textColor }}>💰 Advanced Expense Dashboard</div>
+                            </div>
+                            <div style={{ display: "flex", gap: "10px" }}>
+                                <button onClick={() => setLightMode(!lightMode)} style={{ background: lightMode ? "#e5e7eb" : "#374151", color: textColor, border: "none", borderRadius: "10px", padding: "10px 14px", fontSize: "16px", cursor: "pointer" }}>
+                                    {lightMode ? "🌙" : "☀️"}
+                                </button>
+                                <button onClick={() => setShowAddForm(!showAddForm)} style={{ background: showAddForm ? "#374151" : "#6366f1", color: "#fff", border: "none", borderRadius: "10px", padding: "10px 18px", fontSize: "13px", fontWeight: "600", cursor: "pointer" }}>
+                                    {showAddForm ? "✕ Cancel" : "+ Add"}
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Add form */}
+                        {showAddForm && (
+                            <div style={{ background: bgColor, borderRadius: "12px", padding: "16px", marginBottom: "16px", border: `1px solid ${borderColor}`, display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr auto", gap: "10px", alignItems: "end" }}>
+                                <div>
+                                    <div style={{ fontSize: "11px", color: lightMode ? "#6b7280" : "#94a3b8", marginBottom: "4px" }}>Date</div>
+                                    <input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
+                                        style={{ width: "100%", background: secondaryBg, border: `1px solid ${borderColor}`, borderRadius: "8px", padding: "8px 10px", color: textColor, fontSize: "13px", boxSizing: "border-box" }} />
+                                </div>
+                                <div>
+                                    <div style={{ fontSize: "11px", color: lightMode ? "#6b7280" : "#94a3b8", marginBottom: "4px" }}>Type</div>
+                                    <select value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value, category: e.target.value === "expense" ? "Food" : "Salary" }))}
+                                        style={{ width: "100%", background: secondaryBg, border: `1px solid ${borderColor}`, borderRadius: "8px", padding: "8px 10px", color: textColor, fontSize: "13px", boxSizing: "border-box" }}>
+                                        <option value="expense">Expense</option>
+                                        <option value="credit">Credit</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <div style={{ fontSize: "11px", color: lightMode ? "#6b7280" : "#94a3b8", marginBottom: "4px" }}>Category</div>
+                                    <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
+                                        style={{ width: "100%", background: secondaryBg, border: `1px solid ${borderColor}`, borderRadius: "8px", padding: "8px 10px", color: textColor, fontSize: "13px", boxSizing: "border-box" }}>
+                                        {(form.type === "expense" ? EXPENSE_CATEGORIES : CREDIT_CATEGORIES).map(c => <option key={c}>{c}</option>)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <div style={{ fontSize: "11px", color: lightMode ? "#6b7280" : "#94a3b8", marginBottom: "4px" }}>Amount (₹)</div>
+                                    <input type="number" placeholder="0" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
+                                        style={{ width: "100%", background: secondaryBg, border: `1px solid ${borderColor}`, borderRadius: "8px", padding: "8px 10px", color: textColor, fontSize: "13px", boxSizing: "border-box" }} />
+                                </div>
+                                <div>
+                                    <div style={{ fontSize: "11px", color: lightMode ? "#6b7280" : "#94a3b8", marginBottom: "4px" }}>Tags</div>
+                                    <input type="text" placeholder="tag1, tag2" value={form.tags} onChange={e => setForm(f => ({ ...f, tags: e.target.value }))}
+                                        style={{ width: "100%", background: secondaryBg, border: `1px solid ${borderColor}`, borderRadius: "8px", padding: "8px 10px", color: textColor, fontSize: "13px", boxSizing: "border-box" }} />
+                                </div>
+                                <button onClick={addTransaction} style={{ background: "#10b981", color: "#fff", border: "none", borderRadius: "8px", padding: "8px 16px", fontSize: "13px", fontWeight: "600", cursor: "pointer", whiteSpace: "nowrap" }}>
+                                    Save
+                                </button>
+                            </div>
+                        )}
+
+                        {/* Tabs */}
+                        <div style={{ display: "flex", gap: "0", overflowX: "auto" }}>
+                            {tabs.map(tab => (
+                                <button key={tab} onClick={() => setActiveTab(tab)}
+                                    style={{
+                                        background: "transparent", border: "none", cursor: "pointer",
+                                        padding: "10px 18px", fontSize: "13px", fontWeight: "500",
+                                        color: activeTab === tab ? "#a78bfa" : lightMode ? "#6b7280" : "#64748b",
+                                        borderBottom: activeTab === tab ? "2px solid #a78bfa" : "2px solid transparent",
+                                        textTransform: "capitalize", transition: "all 0.15s", whiteSpace: "nowrap"
+                                    }}>
+                                    {tab}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div style={{ padding: "20px 24px" }}>
+                        {/* OVERVIEW TAB */}
+                        {activeTab === "overview" && (
+                            <div>
+                                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "14px", marginBottom: "22px" }}>
+                                    {[
+                                        { label: "Total Credits", value: formatINR(totalCredits), color: "#10b981", sub: `${MONTHS[currentMonth]} ${currentYear}` },
+                                        { label: "Total Expenses", value: formatINR(totalExpenses), color: "#f97316", sub: "This month" },
+                                        { label: "Balance", value: formatINR(balance), color: balance >= 0 ? "#6366f1" : "#ef4444", sub: balance >= 0 ? "Surplus" : "Deficit" },
+                                        { label: "Savings Goal", value: formatINR(monthlySavingsGoal), color: "#a78bfa", sub: balance >= monthlySavingsGoal ? "✓ On track" : "Pending" },
+                                    ].map(card => (
+                                        <div key={card.label} style={{ background: bgColor, borderRadius: "14px", padding: "18px", border: `1px solid ${borderColor}` }}>
+                                            <div style={{ fontSize: "11px", color: lightMode ? "#6b7280" : "#64748b", letterSpacing: "0.5px", marginBottom: "8px", textTransform: "uppercase" }}>{card.label}</div>
+                                            <div style={{ fontSize: "24px", fontWeight: "700", color: card.color, marginBottom: "4px" }}>{card.value}</div>
+                                            <div style={{ fontSize: "11px", color: lightMode ? "#6b7280" : "#475569" }}>{card.sub}</div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px", marginBottom: "14px" }}>
+                                    <div style={{ background: bgColor, borderRadius: "14px", padding: "20px", border: `1px solid ${borderColor}` }}>
+                                        <div style={{ fontSize: "13px", fontWeight: "600", color: lightMode ? "#6b7280" : "#94a3b8", marginBottom: "16px" }}>Income Sources</div>
+                                        <ResponsiveContainer width="100%" height={200}>
+                                            <PieChart>
+                                                <Pie data={creditCategoryData.filter(c => c.amount > 0)} dataKey="amount" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={80}>
+                                                    {creditCategoryData.filter(c => c.amount > 0).map((entry) => <Cell key={entry.name} fill={CAT_COLORS[entry.name]} />)}
+                                                </Pie>
+                                                <Tooltip formatter={(v) => formatINR(v)} contentStyle={{ background: bgColor, border: `1px solid ${borderColor}`, borderRadius: "8px", color: textColor }} />
+                                            </PieChart>
+                                        </ResponsiveContainer>
+                                    </div>
+
+                                    <div style={{ background: bgColor, borderRadius: "14px", padding: "20px", border: `1px solid ${borderColor}` }}>
+                                        <div style={{ fontSize: "13px", fontWeight: "600", color: lightMode ? "#6b7280" : "#94a3b8", marginBottom: "16px" }}>Spending by Category</div>
+                                        <ResponsiveContainer width="100%" height={200}>
+                                            <PieChart>
+                                                <Pie data={pieData} dataKey="spent" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={80}>
+                                                    {pieData.map((entry) => <Cell key={entry.name} fill={CAT_COLORS[entry.name]} />)}
+                                                </Pie>
+                                                <Tooltip formatter={(v) => formatINR(v)} contentStyle={{ background: bgColor, border: `1px solid ${borderColor}`, borderRadius: "8px", color: textColor }} />
+                                            </PieChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                </div>
+
+                                <div style={{ background: bgColor, borderRadius: "14px", padding: "20px", border: `1px solid ${borderColor}` }}>
+                                    <div style={{ fontSize: "13px", fontWeight: "600", color: lightMode ? "#6b7280" : "#94a3b8", marginBottom: "16px" }}>Monthly Trend</div>
+                                    <ResponsiveContainer width="100%" height={220}>
+                                        <LineChart data={monthlyTrend}>
+                                            <XAxis dataKey="month" tick={{ fill: lightMode ? "#6b7280" : "#64748b", fontSize: 11 }} axisLine={false} tickLine={false} />
+                                            <YAxis tick={{ fill: lightMode ? "#6b7280" : "#64748b", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `₹${(v/1000).toFixed(0)}k`} />
+                                            <Tooltip formatter={(v) => formatINR(v)} contentStyle={{ background: bgColor, border: `1px solid ${borderColor}`, borderRadius: "8px", color: textColor }} />
+                                            <Legend wrapperStyle={{ color: lightMode ? "#6b7280" : "#94a3b8" }} />
+                                            <Line type="monotone" dataKey="credits" stroke="#10b981" strokeWidth={2.5} dot={{ fill: "#10b981", r: 4 }} name="Income" />
+                                            <Line type="monotone" dataKey="expenses" stroke="#f97316" strokeWidth={2.5} dot={{ fill: "#f97316", r: 4 }} name="Expenses" />
+                                        </LineChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* BUDGET TAB */}
+                        {activeTab === "budget" && (
+                            <div>
+                                <div style={{ fontSize: "13px", color: lightMode ? "#6b7280" : "#64748b", marginBottom: "18px" }}>Click any budget to edit it.</div>
+                                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "14px", marginBottom: "22px" }}>
+                                    {categoryData.map(cat => {
+                                        const pct = Math.min(100, Math.round((cat.spent / cat.budget) * 100));
+                                        const over = cat.spent > cat.budget;
+                                        return (
+                                            <div key={cat.name} style={{ background: bgColor, borderRadius: "14px", padding: "18px", border: `1px solid ${over ? (lightMode ? "#fee2e2" : "#7f1d1d") : borderColor}` }}>
+                                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+                                                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                                                        <div style={{ width: "10px", height: "10px", borderRadius: "50%", background: CAT_COLORS[cat.name] }} />
+                                                        <span style={{ fontSize: "14px", fontWeight: "600", color: textColor }}>{cat.name}</span>
+                                                    </div>
+                                                    {over && <span style={{ fontSize: "10px", background: "#7f1d1d", color: "#fca5a5", padding: "2px 8px", borderRadius: "20px" }}>Over!</span>}
+                                                </div>
+                                                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px", fontSize: "12px" }}>
+                                                    <span style={{ color: lightMode ? "#6b7280" : "#94a3b8" }}>Spent: <strong style={{ color: over ? "#ef4444" : textColor }}>{formatINR(cat.spent)}</strong></span>
+                                                    <span style={{ color: lightMode ? "#6b7280" : "#94a3b8" }}>
+                                                        Budget:{" "}
+                                                        {editingBudget === cat.name
+                                                            ? <input type="number" defaultValue={cat.budget} autoFocus
+                                                                  onBlur={e => { setBudgets(b => ({ ...b, [cat.name]: Number(e.target.value) })); setEditingBudget(null); }}
+                                                                  onKeyDown={e => { if (e.key === "Enter") e.target.blur(); }}
+                                                                  style={{ width: "70px", background: secondaryBg, border: `1px solid #6366f1`, borderRadius: "6px", padding: "2px 6px", color: textColor, fontSize: "12px" }} />
+                                                            : <strong style={{ color: "#a78bfa", cursor: "pointer", textDecoration: "underline dotted" }} onClick={() => setEditingBudget(cat.name)}>{formatINR(cat.budget)}</strong>
+                                                        }
+                                                    </span>
+                                                </div>
+                                                <div style={{ background: secondaryBg, borderRadius: "6px", height: "8px", overflow: "hidden" }}>
+                                                    <div style={{ height: "100%", width: `${pct}%`, background: over ? "#ef4444" : pct > 80 ? "#f59e0b" : CAT_COLORS[cat.name], borderRadius: "6px", transition: "width 0.4s ease" }} />
+                                                </div>
+                                                <div style={{ fontSize: "11px", color: lightMode ? "#6b7280" : "#64748b", marginTop: "5px" }}>{pct}% used</div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+
+                                <div style={{ background: bgColor, borderRadius: "14px", padding: "20px", border: `1px solid ${borderColor}` }}>
+                                    <div style={{ fontSize: "13px", fontWeight: "600", color: lightMode ? "#6b7280" : "#94a3b8", marginBottom: "16px" }}>Budget vs Actual</div>
+                                    <ResponsiveContainer width="100%" height={220}>
+                                        <BarChart data={categoryData} barGap={4}>
+                                            <XAxis dataKey="name" tick={{ fill: lightMode ? "#6b7280" : "#64748b", fontSize: 11 }} axisLine={false} tickLine={false} />
+                                            <YAxis tick={{ fill: lightMode ? "#6b7280" : "#64748b", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `₹${(v/1000).toFixed(0)}k`} />
+                                            <Tooltip formatter={(v) => formatINR(v)} contentStyle={{ background: bgColor, border: `1px solid ${borderColor}`, borderRadius: "8px", color: textColor }} />
+                                            <Legend wrapperStyle={{ color: lightMode ? "#6b7280" : "#94a3b8" }} />
+                                            <Bar dataKey="budget" name="Budget" fill={lightMode ? "#e5e7eb" : "#374151"} radius={[4, 4, 0, 0]} />
+                                            <Bar dataKey="spent" name="Spent" radius={[4, 4, 0, 0]}>
+                                                {categoryData.map(c => <Cell key={c.name} fill={CAT_COLORS[c.name]} />)}
+                                            </Bar>
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* SAVINGS TAB */}
+                        {activeTab === "savings" && (
+                            <div>
+                                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "14px", marginBottom: "22px" }}>
+                                    {[
+                                        { label: "Saved This Month", value: formatINR(Math.max(0, balance)), color: balance >= 0 ? "#10b981" : "#ef4444" },
+                                        { label: "Monthly Goal", value: formatINR(monthlySavingsGoal), color: "#a78bfa" },
+                                        { label: "Goal Progress", value: `${Math.min(100, Math.round((Math.max(0, balance) / monthlySavingsGoal) * 100))}%`, color: balance >= monthlySavingsGoal ? "#10b981" : "#f59e0b" },
+                                    ].map(card => (
+                                        <div key={card.label} style={{ background: bgColor, borderRadius: "14px", padding: "20px", border: `1px solid ${borderColor}` }}>
+                                            <div style={{ fontSize: "11px", color: lightMode ? "#6b7280" : "#64748b", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "8px" }}>{card.label}</div>
+                                            <div style={{ fontSize: "28px", fontWeight: "700", color: card.color }}>{card.value}</div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <div style={{ background: bgColor, borderRadius: "14px", padding: "20px", border: `1px solid ${borderColor}`, marginBottom: "14px" }}>
+                                    <div style={{ fontSize: "13px", fontWeight: "600", color: lightMode ? "#6b7280" : "#94a3b8", marginBottom: "12px" }}>Set Monthly Savings Goal</div>
+                                    <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+                                        <input type="range" min={0} max={50000} step={500} value={monthlySavingsGoal}
+                                            onChange={e => setMonthlySavingsGoal(Number(e.target.value))}
+                                            style={{ flex: 1, accentColor: "#a78bfa" }} />
+                                        <span style={{ fontSize: "18px", fontWeight: "700", color: "#a78bfa", minWidth: "90px" }}>{formatINR(monthlySavingsGoal)}</span>
+                                    </div>
+                                    <div style={{ background: secondaryBg, borderRadius: "8px", height: "12px", overflow: "hidden", marginTop: "12px" }}>
+                                        <div style={{
+                                            height: "100%",
+                                            width: `${Math.min(100, Math.round((Math.max(0, balance) / monthlySavingsGoal) * 100))}%`,
+                                            background: balance >= monthlySavingsGoal ? "#10b981" : "linear-gradient(90deg, #6366f1, #a78bfa)",
+                                            borderRadius: "8px", transition: "width 0.4s ease"
+                                        }} />
+                                    </div>
+                                </div>
+
+                                <div style={{ background: bgColor, borderRadius: "14px", padding: "20px", border: `1px solid ${borderColor}` }}>
+                                    <div style={{ fontSize: "13px", fontWeight: "600", color: lightMode ? "#6b7280" : "#94a3b8", marginBottom: "16px" }}>Monthly Net Flow</div>
+                                    <ResponsiveContainer width="100%" height={200}>
+                                        <BarChart data={monthlyTrend.map(m => ({ ...m, net: m.credits - m.expenses }))}>
+                                            <XAxis dataKey="month" tick={{ fill: lightMode ? "#6b7280" : "#64748b", fontSize: 11 }} axisLine={false} tickLine={false} />
+                                            <YAxis tick={{ fill: lightMode ? "#6b7280" : "#64748b", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `₹${(v/1000).toFixed(0)}k`} />
+                                            <Tooltip formatter={(v) => formatINR(v)} contentStyle={{ background: bgColor, border: `1px solid ${borderColor}`, borderRadius: "8px", color: textColor }} />
+                                            <Bar dataKey="net" fill="#6366f1" radius={[6, 6, 0, 0]} />
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* TRANSACTIONS TAB */}
+                        {activeTab === "transactions" && (
+                            <div>
+                                <div style={{ display: "flex", gap: "10px", marginBottom: "14px" }}>
+                                    <input type="text" placeholder="Filter by tag..." value={searchTag} onChange={e => setSearchTag(e.target.value)}
+                                        style={{ flex: 1, background: bgColor, border: `1px solid ${borderColor}`, borderRadius: "8px", padding: "10px 12px", color: textColor, fontSize: "13px" }} />
+                                </div>
+                                <div style={{ fontSize: "13px", color: lightMode ? "#6b7280" : "#64748b", marginBottom: "14px" }}>{filteredTransactions.length} transactions</div>
+                                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                                    {[...filteredTransactions].sort((a, b) => new Date(b.date) - new Date(a.date)).map(t => (
+                                        <div key={t.id} style={{ background: bgColor, borderRadius: "12px", padding: "14px 18px", border: `1px solid ${borderColor}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                            <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+                                                <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: `${CAT_COLORS[t.category]}22`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                                    <div style={{ width: "12px", height: "12px", borderRadius: "50%", background: CAT_COLORS[t.category] }} />
+                                                </div>
+                                                <div>
+                                                    <div style={{ fontSize: "14px", fontWeight: "500", color: textColor }}>{t.note || t.category}</div>
+                                                    <div style={{ fontSize: "11px", color: lightMode ? "#6b7280" : "#64748b", marginTop: "2px" }}>
+                                                        {t.category} · {t.type} · {new Date(t.date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })} {t.tags.length > 0 && `· ${t.tags.join(", ")}`}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+                                                <span style={{ fontSize: "16px", fontWeight: "700", color: t.type === "expense" ? "#f97316" : "#10b981" }}>{t.type === "expense" ? "−" : "+"}{formatINR(t.amount)}</span>
+                                                <button onClick={() => deleteTransaction(t.id)}
+                                                    style={{ background: "transparent", border: "none", color: "#ef4444", cursor: "pointer", fontSize: "16px", opacity: 0.5, padding: "4px" }}
+                                                    title="Delete">✕</button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* ANALYTICS TAB */}
+                        {activeTab === "analytics" && (
+                            <div>
+                                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "14px", marginBottom: "22px" }}>
+                                    {[
+                                        { label: "Avg Daily Spend", value: formatINR(stats.avgDaily), color: "#f59e0b" },
+                                        { label: "Largest Transaction", value: formatINR(stats.largestTransaction), color: "#ef4444" },
+                                        { label: "Transactions", value: stats.transactionCount, color: "#6366f1" },
+                                        { label: "Total Income", value: formatINR(stats.totalCredits), color: "#10b981" },
+                                    ].map(card => (
+                                        <div key={card.label} style={{ background: bgColor, borderRadius: "14px", padding: "20px", border: `1px solid ${borderColor}` }}>
+                                            <div style={{ fontSize: "11px", color: lightMode ? "#6b7280" : "#64748b", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "8px" }}>{card.label}</div>
+                                            <div style={{ fontSize: "28px", fontWeight: "700", color: card.color }}>{card.value}</div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
+                                    <div style={{ background: bgColor, borderRadius: "14px", padding: "20px", border: `1px solid ${borderColor}` }}>
+                                        <div style={{ fontSize: "13px", fontWeight: "600", color: lightMode ? "#6b7280" : "#94a3b8", marginBottom: "16px" }}>Spending Distribution</div>
+                                        <ResponsiveContainer width="100%" height={200}>
+                                            <BarChart data={categoryData.filter(c => c.spent > 0).sort((a, b) => b.spent - a.spent).slice(0, 8)}>
+                                                <XAxis dataKey="name" tick={{ fill: lightMode ? "#6b7280" : "#64748b", fontSize: 10 }} axisLine={false} tickLine={false} angle={-45} textAnchor="end" />
+                                                <YAxis tick={{ fill: lightMode ? "#6b7280" : "#64748b", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `₹${(v/1000).toFixed(0)}k`} />
+                                                <Tooltip formatter={(v) => formatINR(v)} contentStyle={{ background: bgColor, border: `1px solid ${borderColor}`, borderRadius: "8px", color: textColor }} />
+                                                <Bar dataKey="spent" radius={[6, 6, 0, 0]}>
+                                                    {categoryData.filter(c => c.spent > 0).map(c => <Cell key={c.name} fill={CAT_COLORS[c.name]} />)}
+                                                </Bar>
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    </div>
+
+                                    <div style={{ background: bgColor, borderRadius: "14px", padding: "20px", border: `1px solid ${borderColor}` }}>
+                                        <div style={{ fontSize: "13px", fontWeight: "600", color: lightMode ? "#6b7280" : "#94a3b8", marginBottom: "16px" }}>Year-to-Date Comparison</div>
+                                        <div style={{ display: "flex", gap: "10px", marginBottom: "12px" }}>
+                                            <button onClick={() => setCompareYear(compareYear - 1)} style={{ background: "#374151", color: "#fff", border: "none", borderRadius: "6px", padding: "6px 12px", fontSize: "12px", cursor: "pointer" }}>←</button>
+                                            <span style={{ fontSize: "14px", fontWeight: "600", color: textColor, flex: 1, textAlign: "center" }}>{compareYear}</span>
+                                            <button onClick={() => setCompareYear(compareYear + 1)} style={{ background: "#374151", color: "#fff", border: "none", borderRadius: "6px", padding: "6px 12px", fontSize: "12px", cursor: "pointer" }}>→</button>
+                                        </div>
+                                        <ResponsiveContainer width="100%" height={160}>
+                                            <BarChart data={monthlyTrend}>
+                                                <XAxis dataKey="month" tick={{ fill: lightMode ? "#6b7280" : "#64748b", fontSize: 10 }} axisLine={false} tickLine={false} />
+                                                <YAxis tick={{ fill: lightMode ? "#6b7280" : "#64748b", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `₹${(v/1000).toFixed(0)}k`} />
+                                                <Tooltip formatter={(v) => formatINR(v)} contentStyle={{ background: bgColor, border: `1px solid ${borderColor}`, borderRadius: "8px", color: textColor }} />
+                                                <Legend wrapperStyle={{ color: lightMode ? "#6b7280" : "#94a3b8" }} />
+                                                <Bar dataKey="expenses" fill="#f97316" name="Expenses" radius={[4, 4, 0, 0]} />
+                                                <Bar dataKey="credits" fill="#10b981" name="Income" radius={[4, 4, 0, 0]} />
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* RECURRING TAB */}
+                        {activeTab === "recurring" && (
+                            <div>
+                                <div style={{ background: bgColor, borderRadius: "14px", padding: "20px", border: `1px solid ${borderColor}`, marginBottom: "14px" }}>
+                                    <div style={{ fontSize: "13px", fontWeight: "600", color: lightMode ? "#6b7280" : "#94a3b8", marginBottom: "16px" }}>Set Up Recurring Expenses</div>
+                                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: "10px", alignItems: "end" }}>
+                                        <div>
+                                            <div style={{ fontSize: "11px", color: lightMode ? "#6b7280" : "#94a3b8", marginBottom: "4px" }}>Category</div>
+                                            <select id="recurringCategory" style={{ width: "100%", background: secondaryBg, border: `1px solid ${borderColor}`, borderRadius: "8px", padding: "8px 10px", color: textColor, fontSize: "13px" }}>
+                                                {EXPENSE_CATEGORIES.map(c => <option key={c}>{c}</option>)}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <div style={{ fontSize: "11px", color: lightMode ? "#6b7280" : "#94a3b8", marginBottom: "4px" }}>Amount (₹)</div>
+                                            <input type="number" id="recurringAmount" placeholder="0" style={{ width: "100%", background: secondaryBg, border: `1px solid ${borderColor}`, borderRadius: "8px", padding: "8px 10px", color: textColor, fontSize: "13px" }} />
+                                        </div>
+                                        <button onClick={() => {
+                                            const cat = document.getElementById("recurringCategory").value;
+                                            const amt = Number(document.getElementById("recurringAmount").value);
+                                            if (amt > 0) addRecurringExpense(cat, amt);
+                                        }} style={{ background: "#10b981", color: "#fff", border: "none", borderRadius: "8px", padding: "8px 16px", fontSize: "13px", fontWeight: "600", cursor: "pointer", whiteSpace: "nowrap" }}>
+                                            Add
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "14px" }}>
+                                    {recurringExpenses.map(r => (
+                                        <div key={r.id} style={{ background: bgColor, borderRadius: "12px", padding: "16px", border: `1px solid ${borderColor}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                            <div>
+                                                <div style={{ fontSize: "14px", fontWeight: "600", color: textColor }}>{r.category}</div>
+                                                <div style={{ fontSize: "13px", fontWeight: "700", color: "#f59e0b", marginTop: "4px" }}>{formatINR(r.amount)}/month</div>
+                                            </div>
+                                            <button onClick={() => removeRecurringExpense(r.id)} style={{ background: "transparent", border: "none", color: "#ef4444", cursor: "pointer", fontSize: "16px" }}>✕</button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* BACKUP TAB */}
+                        {activeTab === "backup" && (
+                            <div>
+                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
+                                    <div style={{ background: bgColor, borderRadius: "14px", padding: "20px", border: `1px solid ${borderColor}` }}>
+                                        <div style={{ fontSize: "14px", fontWeight: "600", color: textColor, marginBottom: "12px" }}>📊 Export Data</div>
+                                        <div style={{ fontSize: "12px", color: lightMode ? "#6b7280" : "#94a3b8", marginBottom: "16px" }}>Download your transactions for backup or analysis.</div>
+                                        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                                            <button onClick={exportToCSV} style={{ background: "#6366f1", color: "#fff", border: "none", borderRadius: "8px", padding: "10px 16px", fontSize: "13px", fontWeight: "600", cursor: "pointer" }}>
+                                                📄 Export as CSV
+                                            </button>
+                                            <button onClick={exportToExcel} style={{ background: "#10b981", color: "#fff", border: "none", borderRadius: "8px", padding: "10px 16px", fontSize: "13px", fontWeight: "600", cursor: "pointer" }}>
+                                                📈 Export as Excel
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div style={{ background: bgColor, borderRadius: "14px", padding: "20px", border: `1px solid ${borderColor}` }}>
+                                        <div style={{ fontSize: "14px", fontWeight: "600", color: textColor, marginBottom: "12px" }}>💾 Backup & Restore</div>
+                                        <div style={{ fontSize: "12px", color: lightMode ? "#6b7280" : "#94a3b8", marginBottom: "16px" }}>All data is automatically saved to your browser.</div>
+                                        <button onClick={() => {
+                                            const backup = { transactions, budgets, monthlySavingsGoal, recurringExpenses };
+                                            const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
+                                            const url = window.URL.createObjectURL(blob);
+                                            const a = document.createElement("a");
+                                            a.href = url;
+                                            a.download = `expense-backup-${new Date().toISOString().split("T")[0]}.json`;
+                                            a.click();
+                                        }} style={{ background: "#a78bfa", color: "#fff", border: "none", borderRadius: "8px", padding: "10px 16px", fontSize: "13px", fontWeight: "600", cursor: "pointer", width: "100%" }}>
+                                            💾 Download Backup
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div style={{ background: bgColor, borderRadius: "14px", padding: "20px", border: `1px solid ${borderColor}`, marginTop: "14px" }}>
+                                    <div style={{ fontSize: "13px", fontWeight: "600", color: lightMode ? "#6b7280" : "#94a3b8", marginBottom: "12px" }}>ℹ️ About This App</div>
+                                    <div style={{ fontSize: "12px", color: lightMode ? "#6b7280" : "#94a3b8", lineHeight: "1.6" }}>
+                                        <p>✓ All data is stored locally on your device</p>
+                                        <p>✓ No internet connection required after first load</p>
+                                        <p>✓ No ads or tracking</p>
+                                        <p>✓ Works on phone, tablet, and desktop</p>
+                                        <p style={{ marginTop: "10px", fontSize: "11px" }}>Version 2.0 • Advanced Expense Tracker</p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<AdvancedExpenseDashboard />, document.getElementById("root"));
+    </script>
+</body>
+</html>
