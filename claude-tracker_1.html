@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Penny — your money companion</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html{-webkit-text-size-adjust:100%;}
+:root{
+  --bg:#262624;--surface:#30302e;--surface2:#3a3a37;--border:#413f3c;
+  --text:#f5f4ef;--text-dim:#b4b2aa;--text-faint:#8a8881;
+  --clay:#d97757;--clay-soft:#c96442;--user-bubble:#3a3a37;
+}
+body.light{
+  --bg:#f0eee6;--surface:#faf9f5;--surface2:#f5f3ec;--border:#e3e0d6;
+  --text:#2a2825;--text-dim:#6b6862;--text-faint:#928f86;
+  --clay:#c15f3c;--clay-soft:#d97757;--user-bubble:#eceae1;
+}
+body{
+  font-family:'Styrene B','Helvetica Neue',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  background:var(--bg);color:var(--text);min-height:100vh;font-size:16px;line-height:1.5;
+  transition:background 0.3s,color 0.3s;
+}
+.serif{font-family:'Tiempos Text','Georgia',serif;}
+/* Top bar */
+.topbar{position:sticky;top:0;z-index:50;background:var(--bg);border-bottom:1px solid var(--border);
+  padding:max(12px,env(safe-area-inset-top)) 16px 0;}
+.topbar-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.brand{display:flex;align-items:center;gap:10px;}
+.brand-mark{width:30px;height:30px;border-radius:8px;background:var(--clay);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.brand-mark svg{width:18px;height:18px;}
+.brand-name{font-size:18px;font-weight:600;letter-spacing:-0.3px;}
+.brand-sub{font-size:11px;color:var(--text-faint);margin-top:-2px;}
+.topbar-btns{display:flex;gap:7px;}
+.icon-btn{background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:9px;width:40px;height:38px;font-size:16px;cursor:pointer;transition:background 0.15s,transform 0.12s;}
+.icon-btn:active{transform:scale(0.93);}
+.tabs{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;}
+.tabs::-webkit-scrollbar{display:none;}
+.tab{background:transparent;border:none;padding:10px 14px;font-size:14px;font-weight:500;color:var(--text-faint);cursor:pointer;white-space:nowrap;border-radius:8px 8px 0 0;font-family:inherit;transition:color 0.2s;}
+.tab.active{color:var(--text);}
+.tab.active::after{content:"";display:block;height:2px;border-radius:2px;background:var(--clay);margin-top:8px;}
+.content{padding:16px;max-width:760px;margin:0 auto;padding-bottom:120px;}
+/* Chat */
+.chat-feed{display:flex;flex-direction:column;gap:16px;margin-bottom:16px;}
+.msg{display:flex;gap:11px;align-items:flex-start;animation:fade 0.35s ease;}
+@keyframes fade{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+.msg-avatar{width:30px;height:30px;border-radius:7px;background:var(--clay);flex-shrink:0;display:flex;align-items:center;justify-content:center;margin-top:1px;}
+.msg-avatar svg{width:17px;height:17px;}
+.msg-body{flex:1;min-width:0;}
+.msg-name{font-size:13px;font-weight:600;margin-bottom:3px;color:var(--text-dim);}
+.msg-text{font-size:15px;line-height:1.6;color:var(--text);}
+.msg-text strong{font-weight:600;color:var(--text);}
+.msg.user{flex-direction:row-reverse;}
+.msg.user .msg-body{display:flex;justify-content:flex-end;}
+.msg.user .bubble{background:var(--user-bubble);border:1px solid var(--border);padding:10px 14px;border-radius:16px 16px 4px 16px;font-size:15px;max-width:85%;}
+.msg.user .msg-avatar{background:var(--surface2);border:1px solid var(--border);}
+.msg.user .msg-avatar svg{width:15px;height:15px;color:var(--text-dim);}
+.chips{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px;}
+.chip{background:var(--surface);border:1px solid var(--border);color:var(--text-dim);border-radius:18px;padding:7px 13px;font-size:13px;cursor:pointer;font-family:inherit;transition:background 0.15s,transform 0.12s;}
+.chip:active{transform:scale(0.94);}
+.chip:hover{background:var(--surface2);}
+/* Composer */
+.composer{position:fixed;left:0;right:0;bottom:0;z-index:60;background:linear-gradient(to top,var(--bg) 70%,transparent);padding:12px 16px max(14px,env(safe-area-inset-bottom));}
+.composer-inner{max-width:760px;margin:0 auto;background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:7px 7px 7px 16px;display:flex;align-items:center;gap:8px;box-shadow:0 4px 20px rgba(0,0,0,0.15);}
+.composer-input{flex:1;background:transparent;border:none;color:var(--text);font-size:16px;font-family:inherit;outline:none;padding:8px 0;}
+.composer-input::placeholder{color:var(--text-faint);}
+.send-btn{background:var(--clay);border:none;width:38px;height:38px;border-radius:12px;color:#fff;font-size:18px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:transform 0.12s,opacity 0.15s;}
+.send-btn:active{transform:scale(0.9);}
+.send-btn:disabled{opacity:0.4;}
+/* Cards & dashboard */
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-bottom:16px;}
+@media(min-width:640px){.cards{grid-template-columns:repeat(4,1fr);}}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px;}
+.card-label{font-size:11px;color:var(--text-faint);margin-bottom:7px;font-weight:500;}
+.card-value{font-size:22px;font-weight:600;letter-spacing:-0.5px;}
+.card-sub{font-size:11px;color:var(--text-faint);margin-top:3px;}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:18px;margin-bottom:14px;}
+.panel-title{font-size:15px;font-weight:600;margin-bottom:14px;}
+.grid2{display:grid;grid-template-columns:1fr;gap:14px;}
+@media(min-width:680px){.grid2{grid-template-columns:1fr 1fr;}}
+.tx-list{display:flex;flex-direction:column;gap:8px;}
+.tx-item{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:13px 15px;display:flex;justify-content:space-between;align-items:center;gap:10px;}
+.tx-left{display:flex;align-items:center;gap:12px;min-width:0;flex:1;}
+.tx-dot{width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:17px;}
+.tx-name{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.tx-meta{font-size:11px;color:var(--text-faint);margin-top:2px;}
+.tx-amount{font-size:15px;font-weight:600;white-space:nowrap;}
+.tx-del{background:none;border:none;color:var(--clay);font-size:16px;cursor:pointer;opacity:0.5;padding:5px;}
+.budget-row{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:10px;}
+.br-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:9px;}
+.br-name{font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px;}
+.br-dot{width:10px;height:10px;border-radius:50%;}
+.br-edit{background:none;border:none;color:var(--clay);font-size:13px;font-weight:600;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;font-family:inherit;}
+.br-amounts{font-size:12px;color:var(--text-dim);}
+.bar-bg{background:var(--bg);border-radius:7px;height:8px;overflow:hidden;margin-top:8px;border:1px solid var(--border);}
+.bar-fill{height:100%;border-radius:7px;transition:width 0.5s cubic-bezier(0.4,0,0.2,1);}
+.budget-edit-input{width:90px;background:var(--bg);border:1px solid var(--clay);border-radius:9px;padding:6px 9px;color:var(--text);font-size:14px;font-family:inherit;text-align:right;}
+.add-row{display:flex;gap:8px;align-items:center;margin-top:12px;}
+.mini-select,.mini-input{background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:11px;color:var(--text);font-size:14px;font-family:inherit;}
+.mini-select{flex:1;}.mini-input{width:90px;}
+.btn-clay{background:var(--clay);border:none;color:#fff;border-radius:11px;padding:11px 16px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;transition:transform 0.12s;}
+.btn-clay:active{transform:scale(0.94);}
+.range-input{width:100%;accent-color:var(--clay);height:7px;}
+.recur-summary{display:flex;gap:10px;margin-bottom:14px;}
+.rs-card{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:13px;text-align:center;}
+.rs-val{font-size:18px;font-weight:600;}
+.rs-lbl{font-size:10px;color:var(--text-faint);margin-top:4px;}
+.recur-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:9px;display:flex;justify-content:space-between;align-items:center;gap:10px;}
+.recur-info{min-width:0;flex:1;}
+.recur-name{font-size:14px;font-weight:600;}
+.recur-amt{font-size:12px;color:#cc8b6a;margin-top:3px;font-weight:500;}
+.recur-actions{display:flex;gap:7px;align-items:center;}
+.pay-btn{border:1px solid var(--border);background:var(--surface2);color:var(--text-dim);border-radius:10px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;}
+.pay-btn.paid{background:var(--clay);color:#fff;border-color:var(--clay);}
+.search-bar{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:13px 15px;color:var(--text);font-size:16px;font-family:inherit;margin-bottom:14px;}
+.search-bar:focus{outline:none;border-color:var(--clay);}
+.empty{text-align:center;padding:44px 20px;color:var(--text-faint);}
+.empty .e-emoji{font-size:40px;margin-bottom:12px;}
+.export-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px;margin-bottom:12px;}
+.export-card h3{font-size:15px;font-weight:600;margin-bottom:7px;}
+.export-card p{font-size:13px;color:var(--text-dim);margin-bottom:14px;line-height:1.5;}
+.btn-block{display:block;width:100%;padding:13px;margin-bottom:9px;border-radius:12px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;}
+.btn-block.primary{background:var(--clay);color:#fff;border-color:var(--clay);}
+.field{margin-bottom:13px;}
+.field label{font-size:13px;color:var(--text-dim);display:block;margin-bottom:6px;}
+.field input,.field select{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:13px;color:var(--text);font-size:16px;font-family:inherit;}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-row">
+    <div class="brand">
+      <div class="brand-mark">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M5 16L9 8l3 5 2-3 5 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div>
+        <div class="brand-name">Penny</div>
+        <div class="brand-sub">your money companion</div>
+      </div>
+    </div>
+    <div class="topbar-btns">
+      <button class="icon-btn" id="themeBtn" onclick="toggleTheme()">☀️</button>
+    </div>
+  </div>
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('chat',this)">Chat</button>
+    <button class="tab" onclick="showTab('overview',this)">Overview</button>
+    <button class="tab" onclick="showTab('budget',this)">Budget</button>
+    <button class="tab" onclick="showTab('savings',this)">Savings</button>
+    <button class="tab" onclick="showTab('transactions',this)">History</button>
+    <button class="tab" onclick="showTab('recurring',this)">Recurring</button>
+    <button class="tab" onclick="showTab('backup',this)">Settings</button>
+  </div>
+</div>
+
+<div class="content">
+  <!-- CHAT TAB -->
+  <div id="tab-chat">
+    <div class="chat-feed" id="chatFeed"></div>
+  </div>
+
+  <!-- OVERVIEW -->
+  <div id="tab-overview" style="display:none">
+    <div class="cards" id="ovCards"></div>
+    <div id="ovCharts">
+      <div class="grid2" style="margin-bottom:14px;">
+        <div class="panel"><div class="panel-title">Where it went</div><canvas id="pieExpense"></canvas></div>
+        <div class="panel"><div class="panel-title">Where it came from</div><canvas id="pieCredit"></canvas></div>
+      </div>
+      <div class="panel"><div class="panel-title">Month by month</div><canvas id="lineChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- BUDGET -->
+  <div id="tab-budget" style="display:none">
+    <div id="budgetList"></div>
+    <div class="panel" style="margin-top:14px;">
+      <div class="panel-title">Set a budget</div>
+      <div class="add-row">
+        <select class="mini-select" id="newBudgetCat"></select>
+        <input class="mini-input" type="number" id="newBudgetAmt" placeholder="₹">
+        <button class="btn-clay" onclick="addBudget()">Set</button>
+      </div>
+    </div>
+    <div class="panel"><div class="panel-title">Budget vs actual</div><canvas id="budgetBar"></canvas></div>
+  </div>
+
+  <!-- SAVINGS -->
+  <div id="tab-savings" style="display:none">
+    <div class="cards" id="savingsCards"></div>
+    <div class="panel">
+      <div class="panel-title">Monthly savings goal</div>
+      <div style="display:flex;gap:12px;align-items:center;margin-bottom:14px;">
+        <input type="range" class="range-input" min="0" max="100000" step="1000" id="goalRange" oninput="updateGoal(this.value)">
+        <span id="goalLabel" style="font-size:17px;font-weight:600;color:var(--clay);min-width:88px;"></span>
+      </div>
+      <div class="bar-bg"><div class="bar-fill" id="goalProgress" style="background:var(--clay);"></div></div>
+    </div>
+    <div class="panel"><div class="panel-title">What you kept each month</div><canvas id="savingsBar"></canvas></div>
+  </div>
+
+  <!-- HISTORY -->
+  <div id="tab-transactions" style="display:none">
+    <input class="search-bar" id="searchInput" placeholder="Search your history…" oninput="renderTransactions()">
+    <div id="txCount" style="font-size:13px;color:var(--text-faint);margin-bottom:12px;"></div>
+    <div class="tx-list" id="txList"></div>
+  </div>
+
+  <!-- RECURRING -->
+  <div id="tab-recurring" style="display:none">
+    <div class="recur-summary" id="recurSummary"></div>
+    <div class="panel" style="margin-bottom:14px;">
+      <div class="panel-title">Add a recurring bill</div>
+      <div class="field" style="margin-bottom:11px;"><label>Name (optional)</label><input type="text" id="rName" placeholder="e.g. Netflix, Home loan"></div>
+      <div style="display:flex;gap:10px;">
+        <div class="field" style="flex:1;margin:0;"><label>Category</label><select id="rCategory"></select></div>
+        <div class="field" style="flex:1;margin:0;"><label>Due day</label><input type="number" id="rDueDay" placeholder="1-31"></div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:flex-end;margin-top:11px;">
+        <div class="field" style="flex:1;margin:0;"><label>Amount (₹)</label><input type="number" id="rAmount" placeholder="0"></div>
+        <button class="btn-clay" style="padding:13px 20px;" onclick="addRecurring()">Add</button>
+      </div>
+    </div>
+    <div id="recurringList"></div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div id="tab-backup" style="display:none">
+    <div class="export-card">
+      <h3>Export your data</h3>
+      <p>Keep a safe copy of everything you've tracked.</p>
+      <button class="btn-block primary" onclick="exportCSV()">Export as CSV</button>
+      <button class="btn-block" onclick="exportJSON()">Export as JSON backup</button>
+    </div>
+    <div class="export-card">
+      <h3>Restore</h3>
+      <p>Bring back a previous JSON backup.</p>
+      <input type="file" id="importFile" accept=".json" onchange="importJSON(this)" style="display:none;">
+      <button class="btn-block" onclick="document.getElementById('importFile').click()">Import backup</button>
+      <button class="btn-block" style="color:var(--clay);" onclick="clearData()">Clear all data</button>
+    </div>
+    <div class="export-card">
+      <h3>About Penny</h3>
+      <p style="margin:0;">A calm little money companion. Everything stays on your device — no accounts, no tracking, works offline. Penny is an independent app and isn't affiliated with Anthropic or Claude.<br><br>Tip: just talk to Penny in the Chat tab. Try "spent 240 on coffee" or "got 50000 salary".</p>
+    </div>
+  </div>
+</div>
+
+<!-- Composer (only on chat tab) -->
+<div class="composer" id="composer">
+  <div class="composer-inner">
+    <input class="composer-input" id="chatInput" placeholder="Tell Penny what you spent…" onkeydown="if(event.key==='Enter')sendChat()">
+    <button class="send-btn" id="sendBtn" onclick="sendChat()">↑</button>
+  </div>
+</div>
+
+<script>
+const EXPENSE_CATS=["Food","Transport","Rent","Entertainment","Health","Shopping","Utilities","Insurance","Education","Travel","Subscriptions","Personal Care","Gifts","EMI","Other"];
+const CREDIT_CATS=["Salary","Freelance","Investments","Bonus","Refunds","Gifts","Side Income","Other"];
+const COLORS={Food:"#d97757",Transport:"#7da3c4",Rent:"#a98bc4",Entertainment:"#cc8bb0",Health:"#8bc4a0",Shopping:"#d9a857",Utilities:"#7dbcc4",Insurance:"#b8a0d4",Education:"#9b8bc4",Travel:"#e0a877",Subscriptions:"#8b9bd4","Personal Care":"#d49bbc",Gifts:"#d48bc9",EMI:"#cc6b5a",Other:"#a8a59c",Salary:"#8bc4a0",Freelance:"#7dbcc4",Investments:"#d9a857",Bonus:"#a98bc4",Refunds:"#8bc4a0","Side Income":"#7da3c4"};
+const MONTHS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const CAT_EMOJI={Food:"🍽️",Transport:"🚗",Rent:"🏠",Entertainment:"🎬",Health:"💊",Shopping:"🛍️",Utilities:"💡",Insurance:"🛡️",Education:"📚",Travel:"✈️",Subscriptions:"🔁","Personal Care":"🧴",Gifts:"🎁",EMI:"🏦",Other:"📦",Salary:"💼",Freelance:"💻",Investments:"📈",Bonus:"🎉",Refunds:"↩️","Side Income":"💵"};
+
+let transactions=JSON.parse(localStorage.getItem("p_txns")||"[]");
+let budgets=JSON.parse(localStorage.getItem("p_budgets")||"null")||{};
+let savingsGoal=JSON.parse(localStorage.getItem("p_goal")||"10000");
+let recurringExpenses=JSON.parse(localStorage.getItem("p_recur")||"[]");
+let chatLog=JSON.parse(localStorage.getItem("p_chat")||"null");
+let lightMode=localStorage.getItem("p_light")==="true";
+let compareYear=new Date().getFullYear();
+let charts={};
+const now=new Date();const CM=now.getMonth(),CY=now.getFullYear();
+const monthKey=CY+"-"+CM;
+
+function save(){localStorage.setItem("p_txns",JSON.stringify(transactions));localStorage.setItem("p_budgets",JSON.stringify(budgets));localStorage.setItem("p_goal",JSON.stringify(savingsGoal));localStorage.setItem("p_recur",JSON.stringify(recurringExpenses));localStorage.setItem("p_chat",JSON.stringify(chatLog));}
+function fmt(n){return "₹"+Number(n).toLocaleString("en-IN");}
+function emoji(c){return CAT_EMOJI[c]||"📦";}
+function toggleTheme(){lightMode=!lightMode;document.body.className=lightMode?"light":"";document.getElementById("themeBtn").textContent=lightMode?"🌙":"☀️";localStorage.setItem("p_light",lightMode);renderTab(currentTab);}
+
+let currentTab="chat";
+function showTab(name,btn){document.querySelectorAll('[id^="tab-"]').forEach(el=>el.style.display="none");document.getElementById("tab-"+name).style.display="block";document.querySelectorAll(".tab").forEach(b=>b.classList.remove("active"));btn.classList.add("active");currentTab=name;document.getElementById("composer").style.display=name==="chat"?"block":"none";renderTab(name);if(name!=="chat")window.scrollTo(0,0);}
+function renderTab(name){({overview:renderOverview,budget:renderBudget,savings:renderSavings,transactions:renderTransactions,recurring:renderRecurring}[name]||(()=>{}))();}
+
+function thisMonthTxns(){return transactions.filter(t=>{const d=new Date(t.date);return d.getMonth()===CM&&d.getFullYear()===CY;});}
+function monthTxns(m,y){return transactions.filter(t=>{const d=new Date(t.date);return d.getMonth()===m&&d.getFullYear()===y;});}
+function emptyEl(msg){return `<div class="empty"><div class="e-emoji">🍃</div><p>${msg}</p></div>`;}
+
+// ---------- CHAT ----------
+const claudeAvatar=`<div class="msg-avatar"><svg viewBox="0 0 24 24" fill="none"><path d="M5 16L9 8l3 5 2-3 5 6" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>`;
+const userAvatar=`<div class="msg-avatar"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" fill="currentColor"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6" fill="currentColor"/></svg></div>`;
+
+function pennyMsg(html,chips){
+  let c=chips?`<div class="chips">${chips.map(x=>`<button class="chip" onclick="${x.action}">${x.label}</button>`).join("")}</div>`:"";
+  return `<div class="msg">${claudeAvatar}<div class="msg-body"><div class="msg-name">Penny</div><div class="msg-text">${html}${c}</div></div></div>`;
+}
+function userMsg(text){return `<div class="msg user">${userAvatar}<div class="msg-body"><div class="bubble">${text}</div></div></div>`;}
+
+function renderChat(){
+  const feed=document.getElementById("chatFeed");
+  feed.innerHTML=chatLog.map(m=>m.role==="penny"?pennyMsg(m.html,m.chips):userMsg(m.text)).join("");
+  window.scrollTo(0,document.body.scrollHeight);
+}
+function pushPenny(html,chips){chatLog.push({role:"penny",html,chips});save();renderChat();}
+function pushUser(text){chatLog.push({role:"user",text});save();renderChat();}
+
+// natural language parse
+function parseEntry(text){
+  const lower=text.toLowerCase();
+  const amtMatch=lower.match(/(?:₹|rs\.?|inr)?\s*(\d[\d,]*\.?\d*)/);
+  if(!amtMatch)return null;
+  const amount=parseFloat(amtMatch[1].replace(/,/g,""));
+  if(!amount)return null;
+  // credit keywords
+  const creditWords=["got","received","earned","salary","income","credited","refund","bonus","paid me","deposit"];
+  const isCredit=creditWords.some(w=>lower.includes(w));
+  const cats=isCredit?CREDIT_CATS:EXPENSE_CATS;
+  // category guess via keywords
+  const keywordMap={Food:["food","lunch","dinner","breakfast","coffee","grocery","groceries","restaurant","snack","tea","meal","zomato","swiggy"],Transport:["petrol","fuel","uber","ola","taxi","bus","train","metro","auto","transport","diesel"],Rent:["rent"],Entertainment:["movie","netflix","game","concert","entertainment","ott"],Health:["medicine","doctor","hospital","pharmacy","health","gym","medical"],Shopping:["clothes","amazon","flipkart","shopping","shoes","shirt"],Utilities:["electricity","water","gas","wifi","internet","bill","utility","recharge","mobile"],Insurance:["insurance","premium","policy"],Education:["course","book","tuition","fees","education","class"],Travel:["flight","hotel","trip","travel","vacation","booking"],Subscriptions:["subscription","spotify","prime","subscribe"],EMI:["emi","loan","installment"],Gifts:["gift"],Salary:["salary","wages"],Freelance:["freelance","project","client"],Investments:["dividend","investment","mutual fund","stock","sip"],Bonus:["bonus"],Refunds:["refund","cashback"]};
+  let category=isCredit?"Salary":"Other";
+  for(const[cat,words]of Object.entries(keywordMap)){if(cats.includes(cat)&&words.some(w=>lower.includes(w))){category=cat;break;}}
+  // note: strip amount + filler
+  let note=text.replace(amtMatch[0],"").replace(/\b(spent|paid|on|for|got|received|earned|rs|inr|₹|the|a|an|i|of)\b/gi,"").replace(/\s+/g," ").trim();
+  note=note.charAt(0).toUpperCase()+note.slice(1);
+  return {type:isCredit?"credit":"expense",amount,category,note};
+}
+
+function sendChat(){
+  const inp=document.getElementById("chatInput");
+  const text=inp.value.trim();if(!text)return;
+  pushUser(text);inp.value="";
+  setTimeout(()=>handleChat(text),350);
+}
+
+function handleChat(text){
+  const lower=text.toLowerCase();
+  // quick intents
+  if(/^(hi|hello|hey|yo|hii)\b/.test(lower)){pushPenny("Hey! I'm Penny. Just tell me what you spent or earned — like <strong>\"spent 250 on lunch\"</strong> — and I'll log it for you.");return;}
+  if(lower.includes("how much")&&(lower.includes("spent")||lower.includes("spend"))){
+    const e=thisMonthTxns().filter(t=>t.type==="expense").reduce((s,t)=>s+t.amount,0);
+    pushPenny(`So far this month you've spent <strong>${fmt(e)}</strong>.`,[{label:"See breakdown",action:"goTab('overview')"}]);return;
+  }
+  if(lower.includes("balance")||lower.includes("left")||lower.includes("how much do i have")){
+    const t=thisMonthTxns();const e=t.filter(x=>x.type==="expense").reduce((s,x)=>s+x.amount,0);const c=t.filter(x=>x.type==="credit").reduce((s,x)=>s+x.amount,0);
+    pushPenny(`Your balance this month is <strong>${fmt(c-e)}</strong> — ${fmt(c)} in, ${fmt(e)} out.`);return;
+  }
+  if(lower.includes("save")||lower.includes("saving")){
+    const t=thisMonthTxns();const e=t.filter(x=>x.type==="expense").reduce((s,x)=>s+x.amount,0);const c=t.filter(x=>x.type==="credit").reduce((s,x)=>s+x.amount,0);
+    pushPenny(`You've kept <strong>${fmt(Math.max(0,c-e))}</strong> this month. Your goal is ${fmt(savingsGoal)}.`,[{label:"Savings tab",action:"goTab('savings')"}]);return;
+  }
+  if(lower.includes("help")||lower.includes("what can you")){
+    pushPenny("I can log spending and income from plain text. Try things like:<br><br>• <strong>spent 240 on coffee</strong><br>• <strong>1200 groceries</strong><br>• <strong>got 50000 salary</strong><br>• <strong>how much did I spend?</strong><br><br>The tabs up top show your charts, budgets and history.");return;
+  }
+  // try to parse a transaction
+  const parsed=parseEntry(text);
+  if(parsed){
+    transactions.push({id:Date.now(),date:new Date().toISOString().split("T")[0],type:parsed.type,category:parsed.category,amount:parsed.amount,note:parsed.note||parsed.category,tags:["chat"]});
+    save();
+    const verb=parsed.type==="credit"?"Added income":"Logged";
+    const e=thisMonthTxns().filter(t=>t.type==="expense").reduce((s,t)=>s+t.amount,0);
+    let extra=parsed.type==="expense"?` You're at <strong>${fmt(e)}</strong> for ${MONTHS[CM]}.`:"";
+    pushPenny(`${verb} ${emoji(parsed.category)} <strong>${fmt(parsed.amount)}</strong> under <strong>${parsed.category}</strong>${parsed.note&&parsed.note!==parsed.category?` — "${parsed.note}"`:""}.${extra}`,[{label:"Wrong category? Fix it",action:"goTab('transactions')"}]);
+  }else{
+    pushPenny("Hmm, I couldn't spot an amount in that. Try something like <strong>\"spent 250 on lunch\"</strong> or <strong>\"got 5000 freelance\"</strong>.");
+  }
+}
+function goTab(name){const idx=["chat","overview","budget","savings","transactions","recurring","backup"].indexOf(name);document.querySelectorAll(".tab")[idx].click();}
+
+// ---------- OVERVIEW ----------
+function renderOverview(){
+  const txns=thisMonthTxns();
+  const e=txns.filter(t=>t.type==="expense").reduce((s,t)=>s+t.amount,0);
+  const c=txns.filter(t=>t.type==="credit").reduce((s,t)=>s+t.amount,0);
+  document.getElementById("ovCards").innerHTML=[
+    {l:"Income",v:fmt(c),s:MONTHS[CM]+" "+CY},
+    {l:"Spent",v:fmt(e),s:"this month"},
+    {l:"Balance",v:fmt(c-e),s:c-e>=0?"surplus":"deficit"},
+    {l:"Entries",v:txns.length,s:"this month"},
+  ].map(x=>`<div class="card"><div class="card-label">${x.l}</div><div class="card-value">${x.v}</div><div class="card-sub">${x.s}</div></div>`).join("");
+  const ex=document.getElementById("ovEmpty");if(ex)ex.remove();
+  if(transactions.length===0){document.getElementById("ovCharts").style.display="none";document.getElementById("ovCards").insertAdjacentHTML("afterend",`<div id="ovEmpty">${emptyEl("Nothing logged yet. Head to the Chat tab and tell Penny what you spent!")}</div>`);return;}
+  document.getElementById("ovCharts").style.display="block";
+  const ec=EXPENSE_CATS.map(cat=>({n:cat,v:txns.filter(t=>t.type==="expense"&&t.category===cat).reduce((s,t)=>s+t.amount,0)})).filter(x=>x.v>0);
+  mkPie("pieExpense",ec.map(x=>x.n),ec.map(x=>x.v),ec.map(x=>COLORS[x.n]));
+  const cc=CREDIT_CATS.map(cat=>({n:cat,v:txns.filter(t=>t.type==="credit"&&t.category===cat).reduce((s,t)=>s+t.amount,0)})).filter(x=>x.v>0);
+  mkPie("pieCredit",cc.map(x=>x.n),cc.map(x=>x.v),cc.map(x=>COLORS[x.n]));
+  const m6=Array.from({length:6},(_,i)=>{const d=new Date(CY,CM-5+i,1);const t=monthTxns(d.getMonth(),d.getFullYear());return{l:MONTHS[d.getMonth()],e:t.filter(x=>x.type==="expense").reduce((s,x)=>s+x.amount,0),c:t.filter(x=>x.type==="credit").reduce((s,x)=>s+x.amount,0)};});
+  mkLine("lineChart",m6.map(m=>m.l),[{label:"Income",data:m6.map(m=>m.c),color:"#8bc4a0"},{label:"Spent",data:m6.map(m=>m.e),color:"#d97757"}]);
+}
+
+// ---------- BUDGET ----------
+function renderBudget(){
+  const txns=thisMonthTxns().filter(t=>t.type==="expense");
+  populateSelect("newBudgetCat",EXPENSE_CATS);
+  const active=EXPENSE_CATS.filter(cat=>budgets[cat]>0||txns.some(t=>t.category===cat));
+  const data=active.map(cat=>({n:cat,spent:txns.filter(t=>t.category===cat).reduce((s,t)=>s+t.amount,0),b:budgets[cat]||0}));
+  document.getElementById("budgetList").innerHTML=data.length===0?emptyEl("No budgets yet. Set one below and I'll track it."):data.map(c=>{
+    const pct=c.b>0?Math.min(100,Math.round(c.spent/c.b*100)):0;const over=c.b>0&&c.spent>c.b;const col=COLORS[c.n];
+    const bar=over?"#cc6b5a":pct>80?"#d9a857":col;
+    return `<div class="budget-row"><div class="br-top"><div class="br-name"><span class="br-dot" style="background:${col}"></span>${emoji(c.n)} ${c.n}</div><span id="be-${c.n.replace(/ /g,'_')}"><button class="br-edit" onclick="editBudget('${c.n}')">${c.b>0?fmt(c.b):"set budget"}</button></span></div><div class="br-amounts">Spent ${fmt(c.spent)}${c.b>0?` of ${fmt(c.b)}`:""}</div>${c.b>0?`<div class="bar-bg"><div class="bar-fill" style="width:${pct}%;background:${bar}"></div></div>`:""}</div>`;
+  }).join("");
+  const full=EXPENSE_CATS.filter(cat=>budgets[cat]>0).map(cat=>({n:cat,spent:txns.filter(t=>t.category===cat).reduce((s,t)=>s+t.amount,0),b:budgets[cat]}));
+  mkBar("budgetBar",full.map(c=>c.n),[{label:"Budget",data:full.map(c=>c.b),color:"rgba(180,178,170,0.3)"},{label:"Spent",data:full.map(c=>c.spent),colors:full.map(c=>COLORS[c.n])}]);
+}
+function editBudget(name){const id="be-"+name.replace(/ /g,'_');document.getElementById(id).innerHTML=`<input type="number" class="budget-edit-input" value="${budgets[name]||''}" placeholder="0" onblur="saveBudget('${name}',this.value)" onkeydown="if(event.key==='Enter')this.blur()">`;document.getElementById(id).querySelector("input").focus();}
+function saveBudget(name,val){budgets[name]=Number(val)||0;save();renderBudget();}
+function addBudget(){const c=document.getElementById("newBudgetCat").value;const a=Number(document.getElementById("newBudgetAmt").value);if(!a)return;budgets[c]=a;document.getElementById("newBudgetAmt").value="";save();renderBudget();}
+
+// ---------- SAVINGS ----------
+function renderSavings(){
+  const t=thisMonthTxns();const e=t.filter(x=>x.type==="expense").reduce((s,x)=>s+x.amount,0);const c=t.filter(x=>x.type==="credit").reduce((s,x)=>s+x.amount,0);
+  const saved=Math.max(0,c-e);const pct=savingsGoal>0?Math.min(100,Math.round(saved/savingsGoal*100)):0;
+  document.getElementById("savingsCards").innerHTML=[
+    {l:"Kept this month",v:fmt(saved)},{l:"Goal",v:fmt(savingsGoal)},{l:"Progress",v:pct+"%"},{l:"Savings rate",v:c>0?Math.round(saved/c*100)+"%":"—"},
+  ].map(x=>`<div class="card"><div class="card-label">${x.l}</div><div class="card-value">${x.v}</div></div>`).join("");
+  document.getElementById("goalRange").value=savingsGoal;document.getElementById("goalLabel").textContent=fmt(savingsGoal);document.getElementById("goalProgress").style.width=pct+"%";
+  const m6=Array.from({length:6},(_,i)=>{const d=new Date(CY,CM-5+i,1);const tt=monthTxns(d.getMonth(),d.getFullYear());const ee=tt.filter(x=>x.type==="expense").reduce((s,x)=>s+x.amount,0);const cc=tt.filter(x=>x.type==="credit").reduce((s,x)=>s+x.amount,0);return{l:MONTHS[d.getMonth()],net:Math.max(0,cc-ee)};});
+  mkBar("savingsBar",m6.map(m=>m.l),[{label:"Kept",data:m6.map(m=>m.net),color:"#8bc4a0"}]);
+}
+function updateGoal(v){savingsGoal=Number(v);document.getElementById("goalLabel").textContent=fmt(savingsGoal);const t=thisMonthTxns();const e=t.filter(x=>x.type==="expense").reduce((s,x)=>s+x.amount,0);const c=t.filter(x=>x.type==="credit").reduce((s,x)=>s+x.amount,0);const saved=Math.max(0,c-e);const pct=savingsGoal>0?Math.min(100,Math.round(saved/savingsGoal*100)):0;document.getElementById("goalProgress").style.width=pct+"%";save();}
+
+// ---------- HISTORY ----------
+function renderTransactions(){
+  const q=(document.getElementById("searchInput")?.value||"").toLowerCase();
+  const f=transactions.filter(t=>!q||t.note.toLowerCase().includes(q)||t.category.toLowerCase().includes(q)).sort((a,b)=>new Date(b.date)-new Date(a.date));
+  document.getElementById("txCount").textContent=f.length+" entries";
+  document.getElementById("txList").innerHTML=f.length===0?emptyEl(q?"Nothing matches that.":"No history yet."):f.map(t=>{
+    const col=COLORS[t.category]||"#a8a59c";const ac=t.type==="expense"?"var(--clay)":"#7fae8f";const sign=t.type==="expense"?"−":"+";
+    const ds=new Date(t.date).toLocaleDateString("en-IN",{day:"numeric",month:"short"});
+    return `<div class="tx-item"><div class="tx-left"><div class="tx-dot" style="background:${col}33">${emoji(t.category)}</div><div style="min-width:0"><div class="tx-name">${t.note||t.category}</div><div class="tx-meta">${t.category} · ${ds}</div></div></div><div style="display:flex;align-items:center;gap:6px"><span class="tx-amount" style="color:${ac}">${sign}${fmt(t.amount)}</span><button class="tx-del" onclick="delTxn(${t.id})">✕</button></div></div>`;
+  }).join("");
+}
+function delTxn(id){if(!confirm("Delete this entry?"))return;transactions=transactions.filter(t=>t.id!==id);save();renderTransactions();}
+
+// ---------- RECURRING ----------
+function renderRecurring(){
+  populateSelect("rCategory",EXPENSE_CATS);
+  const total=recurringExpenses.reduce((s,r)=>s+r.amount,0);
+  const paid=recurringExpenses.filter(r=>r.paidMonth===monthKey).reduce((s,r)=>s+r.amount,0);
+  const c=thisMonthTxns().filter(t=>t.type==="credit").reduce((s,t)=>s+t.amount,0);
+  const share=c>0?Math.round(total/c*100):0;
+  document.getElementById("recurSummary").innerHTML=`<div class="rs-card"><div class="rs-val">${fmt(total)}</div><div class="rs-lbl">Monthly fixed</div></div><div class="rs-card"><div class="rs-val">${fmt(paid)}</div><div class="rs-lbl">Paid this month</div></div><div class="rs-card"><div class="rs-val">${share}%</div><div class="rs-lbl">of income</div></div>`;
+  document.getElementById("recurringList").innerHTML=recurringExpenses.length===0?emptyEl("No recurring bills yet."):[...recurringExpenses].sort((a,b)=>(a.dueDay||32)-(b.dueDay||32)).map(r=>{
+    const col=COLORS[r.category]||"#a8a59c";const isPaid=r.paidMonth===monthKey;const due=r.dueDay?`due ${r.dueDay}${nth(r.dueDay)}`:"";
+    return `<div class="recur-card"><div style="display:flex;align-items:center;gap:11px;min-width:0;flex:1"><div class="tx-dot" style="background:${col}33">${emoji(r.category)}</div><div class="recur-info"><div class="recur-name">${r.name||r.category}</div><div class="recur-amt">${fmt(r.amount)}/mo ${due?'· '+due:''}</div></div></div><div class="recur-actions"><button class="pay-btn ${isPaid?'paid':''}" onclick="togglePaid(${r.id})">${isPaid?'✓ Paid':'Mark paid'}</button><button class="tx-del" onclick="rmRecur(${r.id})">✕</button></div></div>`;
+  }).join("");
+}
+function nth(d){if(d>3&&d<21)return "th";return ["th","st","nd","rd"][d%10]||"th";}
+function addRecurring(){const name=document.getElementById("rName").value.trim();const c=document.getElementById("rCategory").value;const a=Number(document.getElementById("rAmount").value);const dd=Number(document.getElementById("rDueDay").value)||null;if(!a){alert("Enter an amount");return;}recurringExpenses.push({id:Date.now(),name,category:c,amount:a,dueDay:dd,paidMonth:null});document.getElementById("rName").value="";document.getElementById("rAmount").value="";document.getElementById("rDueDay").value="";save();renderRecurring();}
+function togglePaid(id){const r=recurringExpenses.find(x=>x.id===id);if(!r)return;if(r.paidMonth===monthKey){r.paidMonth=null;transactions=transactions.filter(t=>!(t.recurId===id&&new Date(t.date).getMonth()===CM&&new Date(t.date).getFullYear()===CY));}else{r.paidMonth=monthKey;transactions.push({id:Date.now(),recurId:id,date:new Date().toISOString().split("T")[0],type:"expense",category:r.category,amount:r.amount,note:(r.name||r.category)+" (recurring)",tags:["recurring"]});}save();renderRecurring();}
+function rmRecur(id){if(!confirm("Remove this bill?"))return;recurringExpenses=recurringExpenses.filter(r=>r.id!==id);save();renderRecurring();}
+
+// ---------- DATA ----------
+function exportCSV(){const rows=[["Date","Type","Category","Amount","Note"],...transactions.map(t=>[t.date,t.type,t.category,t.amount,t.note])];download(rows.map(r=>r.join(",")).join("\n"),"penny-expenses.csv","text/csv");}
+function exportJSON(){download(JSON.stringify({transactions,budgets,savingsGoal,recurringExpenses},null,2),"penny-backup.json","application/json");}
+function importJSON(input){const f=input.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{try{const d=JSON.parse(e.target.result);if(d.transactions)transactions=d.transactions;if(d.budgets)budgets=d.budgets;if(d.savingsGoal)savingsGoal=d.savingsGoal;if(d.recurringExpenses)recurringExpenses=d.recurringExpenses;save();alert("Restored!");renderTab(currentTab);}catch{alert("Invalid file.");}};r.readAsText(f);}
+function clearData(){if(!confirm("Delete everything?"))return;transactions=[];budgets={};savingsGoal=10000;recurringExpenses=[];chatLog=null;initChat();save();alert("All clear.");}
+function download(c,fn,ty){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([c],{type:ty}));a.download=fn;a.click();}
+
+function populateSelect(id,arr){const el=document.getElementById(id);if(el)el.innerHTML=arr.map(c=>`<option>${c}</option>`).join("");}
+
+// ---------- CHARTS ----------
+function destroyChart(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
+function tickColor(){return lightMode?"rgba(42,40,37,0.6)":"rgba(180,178,170,0.7)";}
+function gridColor(){return lightMode?"rgba(42,40,37,0.08)":"rgba(245,244,239,0.07)";}
+function mkPie(id,l,d,c){destroyChart(id);const x=document.getElementById(id);if(!x)return;charts[id]=new Chart(x,{type:"doughnut",data:{labels:l,datasets:[{data:d,backgroundColor:c,borderWidth:0,hoverOffset:7}]},options:{responsive:true,cutout:"64%",plugins:{legend:{position:"bottom",labels:{color:tickColor(),font:{size:11,family:"inherit"},boxWidth:11,padding:11}},tooltip:{callbacks:{label:i=>`${i.label}: ${fmt(i.raw)}`}}}}});}
+function mkLine(id,l,ds){destroyChart(id);const x=document.getElementById(id);if(!x)return;charts[id]=new Chart(x,{type:"line",data:{labels:l,datasets:ds.map(d=>({label:d.label,data:d.data,borderColor:d.color,backgroundColor:d.color+"22",fill:true,tension:0.4,pointBackgroundColor:d.color,pointRadius:4,borderWidth:2.5}))},options:{responsive:true,scales:{x:{ticks:{color:tickColor(),font:{size:11}},grid:{display:false}},y:{ticks:{color:tickColor(),font:{size:11},callback:v=>`₹${(v/1000).toFixed(0)}k`},grid:{color:gridColor()}}},plugins:{legend:{labels:{color:tickColor(),font:{size:12}}},tooltip:{callbacks:{label:i=>`${i.dataset.label}: ${fmt(i.raw)}`}}}}});}
+function mkBar(id,l,ds){destroyChart(id);const x=document.getElementById(id);if(!x)return;charts[id]=new Chart(x,{type:"bar",data:{labels:l,datasets:ds.map(d=>({label:d.label,data:d.data,backgroundColor:d.colors||d.color,borderRadius:5,borderSkipped:false}))},options:{responsive:true,scales:{x:{ticks:{color:tickColor(),font:{size:10}},grid:{display:false}},y:{ticks:{color:tickColor(),font:{size:11},callback:v=>`₹${(v/1000).toFixed(0)}k`},grid:{color:gridColor()}}},plugins:{legend:{labels:{color:tickColor(),font:{size:12}}},tooltip:{callbacks:{label:i=>`${i.dataset.label}: ${fmt(i.raw)}`}}}}});}
+
+// ---------- INIT ----------
+function initChat(){
+  if(!chatLog){
+    chatLog=[{role:"penny",html:"Hi, I'm <strong>Penny</strong> 🌱 — your little money companion. Just tell me what you spent or earned in plain words and I'll keep track.<br><br>Try saying something like <strong>\"spent 240 on coffee\"</strong> or <strong>\"got 50000 salary\"</strong>.",chips:[{label:"What can you do?",action:"quickAsk('what can you do?')"},{label:"Log a sample expense",action:"quickAsk('spent 250 on lunch')"}]}];
+    save();
+  }
+}
+function quickAsk(t){document.getElementById("chatInput").value=t;sendChat();}
+
+if(lightMode){document.body.className="light";document.getElementById("themeBtn").textContent="🌙";}
+initChat();renderChat();
